@@ -1,7 +1,45 @@
 import requests
 import sys
+import unicodedata
 
 from bs4 import BeautifulSoup
+
+
+###### FIRST PASS AT A HOMEMADE PARSER ######
+
+UNITS = [
+    "teaspoon",
+    "tablespoon",
+    "cup",
+    "fluid ounce",
+    "ounce",
+    "gallon",
+    "quart",
+    "pint",
+    "clove",
+]
+
+
+def parseIngredient(ingr: str):
+    quant, unit, rest = None, None, None
+    words = ingr.split()
+
+    for (i, w) in enumerate(words):
+        word = w.lower()
+        if w.isnumeric():
+            n = unicodedata.numeric(w) if len(w) == 1 else float(w)
+            quant = quant + n if quant else n
+        elif word in UNITS or (word[-1] == "s" and word[:-1] in UNITS):
+            unit = word
+            rest = " ".join(words[i + 1:])
+            break
+        else:
+            rest = " ".join(words[i:])
+            break
+    return quant, unit, rest
+
+
+###### SCRAPER ######
 
 
 def clean_text(txt: str) -> str:
@@ -9,7 +47,7 @@ def clean_text(txt: str) -> str:
     return " ".join(txt.strip().split())
 
 
-def getRecipe(url: str) -> tuple[list[str], list[str]]:
+def scrape(url: str) -> tuple[list[str], list[str]]:
     page = requests.get(url)
     soup = BeautifulSoup(page.content, "html.parser")
 
@@ -26,8 +64,7 @@ def getRecipe(url: str) -> tuple[list[str], list[str]]:
 
 def main():
     url = sys.argv[1]
-    getRecipe(url)
-    ingredients, instructions = getRecipe(url)
+    ingredients, instructions = scrape(url)
     
     for ingr in ingredients:
         print(ingr)
