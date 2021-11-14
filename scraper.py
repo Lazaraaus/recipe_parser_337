@@ -39,10 +39,9 @@ def parseIngredient(ingr: str):
             break
     return quant, unit, rest
 
-
 ##Alternative Ingredient Parser
 
-#def parseIngredient(string):
+#def parseIngredient(string: str):
 #    result = parse_ingredient(string)
 #    return result
 
@@ -78,8 +77,12 @@ def main():
         print(ingr)
     print()
 
+    #Steps - Add parsed ingredients, tools, methods etc.
+    steps = 1
     for instr in instructions:
+        print("Step " + str(steps) + ":")
         print(instr)
+        steps += 1
 
 
 if __name__ == "__main__":
