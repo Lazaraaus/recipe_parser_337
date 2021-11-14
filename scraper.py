@@ -1,6 +1,7 @@
 import requests
 import sys
 import unicodedata
+from parse_ingredients import parse_ingredient
 
 from bs4 import BeautifulSoup
 
@@ -37,6 +38,13 @@ def parseIngredient(ingr: str):
             rest = " ".join(words[i:])
             break
     return quant, unit, rest
+
+
+##Alternative Ingredient Parser
+
+#def parseIngredient(string):
+#    result = parse_ingredient(string)
+#    return result
 
 
 ###### SCRAPER ######
