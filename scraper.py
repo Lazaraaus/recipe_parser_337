@@ -2,6 +2,7 @@ import requests
 import sys
 import unicodedata
 from parse_ingredients import parse_ingredient
+from recipe_scrapers import scrape_me
 
 from bs4 import BeautifulSoup
 
@@ -83,6 +84,11 @@ def main():
         print("Step " + str(steps) + ":")
         print(instr)
         steps += 1
+
+    #Test Alternative Scraper/Parser
+    scraper = scrape_me(url)
+    print(scraper.ingredients())
+    print(scraper.instructions())
 
 
 if __name__ == "__main__":
