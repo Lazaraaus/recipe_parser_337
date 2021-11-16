@@ -21,6 +21,22 @@ UNITS = [
     "clove",
 ]
 
+TOOLS = ['pan', 'bowl', 'baster', 'saucepan', 'knife', 'oven', 'beanpot', 'chip pan', 'cookie sheet', 'cooking pot', 'crepe pan', 'double boiler', 'doufeu',
+         'dutch oven', 'food processor', 'frying pan', 'skillet', 'griddle', 'karahi', 'kettle', 'pan', 'pressure cooker', 'ramekin', 'roasting pan',
+         'roasting rack', 'saucepansauciersaute pan', 'splayed saute pan', 'souffle dish', 'springform pan', 'stockpot', 'tajine', 'tube panwok',
+         'wonder pot', 'pot', 'apple corer', 'apple cutter', 'baster', 'biscuit cutter', 'biscuit press', 'baking dish', 'bread knife', 'browning tray',
+         'butter curler', 'cake and pie server', 'cheese knife', 'cheesecloth', 'knife', 'cherry pitter', 'chinoise', 'cleaver', 'corkscrew',
+         'cutting board', 'dough scraper', 'egg poacher', 'egg separator', 'egg slicer', 'egg timer', 'fillet knife', 'fish scaler', 'fish slice',
+         'flour sifter', 'food mill', 'funnel', 'garlic press', 'grapefruit knife', 'grater', 'gravy strainer', 'ladle', 'lame', 'lemon reamer',
+         'lemon squeezer', 'mandoline', 'mated colander pot', 'measuring cup', 'measuring spoon', 'grinder', 'tenderiser', 'thermometer', 'melon baller',
+         'mortar and pestle', 'nutcracker', 'nutmeg grater', 'oven glove', 'blender', 'fryer', 'pastry bush', 'pastry wheel', 'peeler', 'pepper mill',
+         'pizza cutter', 'masher', 'potato ricer', 'pot-holder', 'rolling pin', 'salt shaker', 'sieve', 'spoon', 'fork', 'spatula', 'spider', 'tin opener',
+         'tongs', 'whisk', 'wooden spoon', 'zester', 'microwave', 'cylinder', 'Aluminum foil', 'steamer', 'broiler rack', 'grate', 'shallow glass dish', 'wok',
+         'dish', 'broiler tray', 'slow cooker']
+
+ACTION_TO_TOOL = {'carve': 'carving knife', 'cut': 'knife', 'dice': 'knife',
+                  'chop': 'knife', 'brush': 'brush', 'slice': 'knife', 'chopped': 'knife', 'peeled': 'peeler', 'melted': 'microwave'}
+
 
 def parseIngredient(ingr: str):
     quant, unit, rest = None, None, None
@@ -39,6 +55,18 @@ def parseIngredient(ingr: str):
             rest = " ".join(words[i:])
             break
     return quant, unit, rest
+
+def parseTools(txt: str):
+    recipe_tools = []
+    words = txt.split()
+    for tool in TOOLS:
+        if tool not in recipe_tools:
+            if tool in txt:
+                recipe_tools.append(tool)
+    for word in words:
+        if word in ACTION_TO_TOOL:
+            recipe_tools.append(ACTION_TO_TOOL[word])
+    return recipe_tools
 
 ##Alternative Ingredient Parser
 
@@ -76,6 +104,8 @@ def main():
     
     for ingr in ingredients:
         print(ingr)
+        tools = parseTools(ingr)
+        print("Tools: ", tools)
     print()
 
     #Steps - Add parsed ingredients, tools, methods etc.
@@ -83,6 +113,8 @@ def main():
     for instr in instructions:
         print("Step " + str(steps) + ":")
         print(instr)
+        tools = parseTools(instr)
+        print("Tools: ", tools)
         steps += 1
 
     #Test Alternative Scraper/Parser
