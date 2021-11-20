@@ -23,6 +23,7 @@ from bs4 import BeautifulSoup
 
 # 11/19
 # Added: 'and' catch to parseIngredient
+# Added: extra descriptors
 # Concerns: Units like 'to taste' are going uncaught. Could check ingrs_dict['rest'] string for it but would rather it get caught as a unit. 
 
 # Corpora for types of Ingredients
@@ -30,7 +31,7 @@ MEATS = ['pork', 'pork tenderloin','pork chop', 'chicken', 'chicken breast', 'ch
 GAME_MEATS = ['pheasant', 'rabbit', 'bison', 'duck', 'goose', 'venison', 'quail']
 FISH = ['tuna', 'catfish', 'trout', 'sardines', 'snapper', 'bass', 'cod', 'squid', 'blowfish', 'fugu', 'octopus', 'salmon', 'swordfish', 'mahi mahi', 'snapper', 'tilapia', 'red snapper', 'herring', 'anchovies', 'haddock', 'flounder', 'rainbow trout', 'alaskan pollock', 'pacific halibut', 'halibut', 'pike', 'atlantic mackerel', 'mackerel', 'branzino', 'fish']
 SHELLFISH = ['lobster', 'clam', 'crab', 'oyster', 'shrimp', 'crawfish', 'mussel', 'scallop', 'shellfish']
-FRUITS = ['apple', 'banana', 'cherry', 'blueberry', 'raspberry', 'berry', 'strawberry', 'pineapple', 'plum', 'grapes', 'lychee', 'passionfruit', 'blackberry', 'orange', 'lime', 'lemon', 'citrus', 'grapefruit', 'coconut', 'watermelon', 'peach', 'pear']
+FRUITS = ['apple', 'banana', 'cherry', 'blueberry', 'raspberry', 'berry', 'strawberry', 'pineapple', 'plum', 'grapes', 'lychee', 'passionfruit', 'blackberry', 'orange', 'lime', 'lemon', 'citrus', 'grapefruit', 'coconut', 'watermelon', 'peach', 'pear', 'pumpkin']
 VEGETABLES = ['broccoli', 'onion', 'shallot', 'leek', 'fennel', 'green bean', 'bell pepper', 'spinach', 'cabbage', 'asparagus', 'greens', 'pea', 'green pea', 'tomato', 'potato', 'sweet potato', 'carrot', 'celery', 'mushroom', 'cucumber', 'pickles', 'vegetable']
 GRAINS = ['rice', 'quinoa', 'maize', 'cornmeal', 'barley', 'wheat', 'oat', 'buckwheat', 'bulgur', 'millet', 'rye', 'amaranth']
 SEEDS = ['sunflower seeds', 'flaxseeds', 'poppy seeds', 'pumpkin seeds', 'caraway seeds', 'chia seeds', 'sesame seeds', 'nigella seeds']
@@ -84,12 +85,13 @@ TOOLS = ['pan', 'bowl', 'baster', 'saucepan', 'knife', 'oven', 'beanpot', 'chip 
          'dish', 'broiler tray', 'slow cooker']
 # Action2Tool dict
 ACTION_TO_TOOL = {'carve': 'carving knife', 'cut': 'knife', 'dice': 'knife',
-                  'chop': 'knife', 'brush': 'brush', 'slice': 'knife', 'chopped': 'knife', 'peeled': 'peeler', 'melted': 'microwave'}
+                  'chop': 'knife', 'brush': 'brush', 'slice': 'knife', 'chopped': 'knife', 'peeled': 'peeler', 'melted': 'microwave', 'diced':'knife'}
 # Action Words 
 ACTIONS = ['mix', 'whisk', 'stir', 'toss', 'bake', 'shake', 'preheat', 'heat', 'saute' 'chop', 'slice', 'cut', 'mince', 'grate', 'crush', 'squeeze', 'blend', 'mash', 'fry', 'boil', 'roast', 'broil']
 # Descriptor Words
-INGREDIENT_DESCRIPTOR = ['fresh', 'good', 'heirloom', 'virgin', 'extra virgin', 'ripe', 'organic', 'seedless', 'chopped', 'minced', 'uncooked', 'grated', 'frozen', 'mixed', 'baby', 'sliced', 'cubed']
-
+INGREDIENT_DESCRIPTOR = ['fresh', 'good', 'heirloom', 'virgin', 'extra virgin', 'ripe', 'organic', 'seedless', 'chopped', 'minced', 'uncooked', 'grated', 'frozen', 'mixed', 'baby', 'sliced', 'cubed', 'small', 'large', 'shredded', 'ground', 'finely', 'salted', 'unsalted', 'diced']
+# Stop Words for Ingredient parsing
+INGREDIENT_STOP_WORDS = ['ground', 'black']
 
 # Containers for replacement/generation 
 # Healthy, Vegetarian, Cuisine, etc
@@ -123,6 +125,7 @@ def parseIngredient(ingr: str) -> str:
         # if any match
             if pos_ingr in ingr:
                 # Catch 'and' in ingr. Has to be a better way to do this. 
+                # 'salt and black pepper' --> 'salt and black'  |   'salt and ground black pepper' --> 'salt and ground' 
                 if 'and' in ingr:
                     # Split into list w idxs
                     split_ingrs = ingr.split()
@@ -132,6 +135,11 @@ def parseIngredient(ingr: str) -> str:
                             # Get preceding and anteceding elements
                             first_ingr = split_ingrs[i - 1]
                             second_ingr = split_ingrs[i + 1]
+                            # Check for bad parse of 2nd ingredient
+                            if second_ingr in INGREDIENT_STOP_WORDS:
+                                second_ingr = second_ingr + ' ' + split_ingrs[i + 2]
+                                if split_ingrs[i + 2] in INGREDIENT_STOP_WORDS:
+                                    second_ingr = second_ingr + ' ' + split_ingrs[i + 3]
                             # Concat to ingredient
                             ingredient = first_ingr + ' and ' +  second_ingr
                             break 
@@ -240,7 +248,8 @@ def scrape(url: str) -> 'tuple[list[str], list[str]]':
 
 
 def main():
-    url = 'https://www.allrecipes.com/recipe/55151/ravioli-soup/'
+    url = 'https://www.allrecipes.com/recipe/281710/pumpkin-ravioli-with-sage-brown-butter-sauce/'
+    #'https://www.allrecipes.com/recipe/55151/ravioli-soup/'
     #'https://www.allrecipes.com/recipe/11679/homemade-mac-and-cheese/'
     #'https://www.allrecipes.com/recipe/237335/spicy-sweet-pork-tenderloin/' #sys.argv[1]
     ingredients, instructions = scrape(url)
