@@ -12,17 +12,21 @@ from bs4 import BeautifulSoup
 #################
 # Yjaden  Notes #
 #################
-# Added corpora for ingredients, need to add more specific MEATS; steak, types of steak, etc
-# Added corpora for ACTIONS
-# Added corpora for INGREDIENT_DESCRIPTORS
-# parseIngredients - Function to work in tandem with parseIngredient to build ingredient_dict
-# parseIngredient - Removed the Break statement and rest construction in Units check. Added check for descriptors. Added ingredient matching. 
-# parseInstructions - Constructs a Dict of all steps in tandem with parseInstruction
-# parseInstruction - Constructs a dict of a specific step -> ingredient, actions, tools, time
+# 11/18
+# Added: corpora for ingredients, need to add more specific MEATS; steak, types of steak, etc
+# Added: corpora for ACTIONS
+# Added: corpora for INGREDIENT_DESCRIPTORS
+# Added: parseIngredients - Function to work in tandem with parseIngredient to build ingredient_dict
+# Added: parseIngredient - Removed the Break statement and rest construction in Units check. Added check for descriptors. Added ingredient matching. 
+# Added: parseInstructions - Constructs a Dict of all steps in tandem with parseInstruction
+# Added: parseInstruction - Constructs a dict of a specific step -> ingredient, actions, tools, time
 
+# 11/19
+# Added: 'and' catch to parseIngredient
+# Concerns: Units like 'to taste' are going uncaught. Could check ingrs_dict['rest'] string for it but would rather it get caught as a unit. 
 
 # Corpora for types of Ingredients
-MEATS = ['pork', 'pork tenderloin','pork chop', 'chicken', 'chicken breast', 'chicken wings', 'chicken thighs', 'beef', 'ground beef', 'sausage', 'turkey', 'ham', 'goat', 'lamb'] # Need to add specific cuts -> pork tenderloin, chicken breast, etc
+MEATS = ['pork', 'pork tenderloin','pork chop', 'chicken', 'chicken breast', 'chicken wings', 'chicken thighs', 'beef', 'ground beef', 'sausage', 'turkey', 'ground turkey' 'ham', 'goat', 'lamb'] # Need to add specific cuts -> pork tenderloin, chicken breast, etc
 GAME_MEATS = ['pheasant', 'rabbit', 'bison', 'duck', 'goose', 'venison', 'quail']
 FISH = ['tuna', 'catfish', 'trout', 'sardines', 'snapper', 'bass', 'cod', 'squid', 'blowfish', 'fugu', 'octopus', 'salmon', 'swordfish', 'mahi mahi', 'snapper', 'tilapia', 'red snapper', 'herring', 'anchovies', 'haddock', 'flounder', 'rainbow trout', 'alaskan pollock', 'pacific halibut', 'halibut', 'pike', 'atlantic mackerel', 'mackerel', 'branzino', 'fish']
 SHELLFISH = ['lobster', 'clam', 'crab', 'oyster', 'shrimp', 'crawfish', 'mussel', 'scallop', 'shellfish']
@@ -32,17 +36,17 @@ GRAINS = ['rice', 'quinoa', 'maize', 'cornmeal', 'barley', 'wheat', 'oat', 'buck
 SEEDS = ['sunflower seeds', 'flaxseeds', 'poppy seeds', 'pumpkin seeds', 'caraway seeds', 'chia seeds', 'sesame seeds', 'nigella seeds']
 NUTS = ['almond', 'peanut', 'peanut butter', 'walnut', 'pecans', 'black walnut', 'chestnuts', 'cashews', 'hazelnuts', 'pistachios', 'brazil nuts', 'macadamia nuts', 'pine nuts', 'baru nuts', 'acorns', 'hickory nuts', 'pili nuts', 'sacha inchi', 'tiger nuts']
 FLOURS = ['flour', 'wheat flour', 'pastry flour', 'cake flour', 'bread flour', 'gluten-free flour', 'gluten free flour', 'sprouted flour', 'rice flour', 'soy flour', 'noodle flour', 'corn flour']
-CARBOHYDRATES = ['noodles', 'noodle', 'pasta', 'tortilla', 'tortillas', 'bread', 'breads', 'loaves', 'loaf']
+CARBOHYDRATES = ['noodles', 'noodle', 'pasta', 'tortilla', 'tortillas', 'bread', 'breads', 'bread crumbs' 'loaves', 'loaf', 'macaroni', 'spaghetti', 'farfalle', 'angel hair', 'rotini', 'penne', 'lasagna', 'cannelloni', 'elbow macaroni', 'gnocchi', 'bow-tie', 'ravioli', 'tortellini']
 BEANS = ['black beans', 'cannellini beans', 'kidney beans', 'garbanzo beans', 'navy beans', 'great northern beans', 'pinto beans', 'lima beans', 'fava beans', 'mung beans', 'red beans', 'soybeans', 'flageolet beans', 'black-eyed peas', 'lentils', 'chickpeas']
 DAIRY = ['milk', 'yogurt', 'cheese', 'butter', 'cream', 'heavy cream', 'sour cream', 'whipped cream', 'egg', 'eggs', 'ice cream']
 OILS = ['olive oil', 'vegetable oil', 'coconut oil', 'sesame oil', 'canola oil', 'cooking oil', 'amaranth oil', 'oil']
 HERBS = ['basil', 'bay leaf', 'cilantro', 'chives', 'dill', 'lemongrass', 'lemon grass', 'lavender', 'marjoram', 'mint', 'rosemary', 'sage', 'oregano', 'parsley', 'thyme', 'tarragon', 'savory', 'rose', 'garlic']
-SPICES = ['salt', 'black pepper', 'anise', 'caraway', 'cardamom', 'celery seed', 'chile', 'chili powder', 'cayenne', 'poppy seed', 'cinnamon', 'cloves', 'coriander', 'cumin', 'dill seed', 'fenugreek', 'ginger', 'ginger root', 'juniper berries', 'mace', 'nigella', 'nutmeg', 'peppercorns', 'saffron', 'star anise', 'sumac', 'turmeric', 'cajun', 'cajun blackened', 'shichimi', 'togarashi', 'ginger', 'sesame seed', 'curry powder', 'masala', 'five spice', 'jerk', 'baharat', 'zhug', 'seasoning']
+SPICES = ['salt', 'black pepper', 'anise', 'caraway', 'cardamom', 'celery seed', 'chile', 'chili powder', 'cayenne', 'poppy seed', 'cinnamon', 'cloves', 'coriander', 'cumin', 'dill seed', 'fenugreek', 'ginger', 'ginger root', 'juniper berries', 'mace', 'nigella', 'nutmeg', 'peppercorns', 'saffron', 'star anise', 'sumac', 'turmeric', 'cajun', 'cajun blackened', 'shichimi', 'togarashi', 'ginger', 'sesame seed', 'curry powder', 'masala', 'five spice', 'jerk', 'baharat', 'zhug','paprika', 'chicken bouillon', 'beef bouillon', 'seasoning']
 SWEETS = ['chocolate', 'cocoa', 'chocolate sauce', 'blueberry syrup', 'fruit caramel', 'caramel', 'syrup', 'raspberry preserves', 'peach preserves', 'grape preserves', 'blueberry preserves' 'mango preserves', 'pear preserves']
 EXTRACTS = ['vanilla extract', 'orange extract', 'coffee extract', 'lemon extract', 'almond extract', 'peppermint extract', 'cherry extract', 'butter extract', 'maple extract', 'coconut extract', 'banana extract', 'rum extract']
 SUGARS = ['powdered sugar', 'white sugar', 'sugar', 'brown sugar', 'confectioners sugar', 'coconut sugar', 'brown rice sugar', 'honey', 'agave', 'cane sugar', 'coarse sugar', 'pearl sugar', 'turbinado', 'muscovado sugar']
 CONDIMENTS = ['ketchup', 'mustard', 'mayo', 'mayonnaise', 'vinegar']
-SAUCES = ['enchilada sauce', 'chimichurri', 'tahini sauce', 'tahini', 'pesto', 'peanut sauce', 'roasted red pepper sauce', 'soy sauce', 'barbecue sauce', 'hot sauce', 'tomato sauce', 'romesco sauce', 'cashew sauce', 'teriyaki sauce', 'nuoc cham', 'charmoula', 'yangnyeom sauce', 'buffalo sauce', 'salsa', 'roja salsa', 'salsa roja', 'tomatillo salsa', 'salsa tomatillo', 'avocado salsa', 'tartar sauce', 'marinara', 'alfredo', 'alfredo sauce', 'romesco', 'hollandaise', 'vinaigrett', 'coulis', 'cheese sauce', 'duck sauce', 'salad dressing', 'gravy', 'mushroom gravy', 'worcestershire sauce', 'aioli', 'garlic sauce', 'remoulade', 'fish sauce', 'garum', 'bagna cáuda', 'sriracha sauce', 'tabasco sauce', 'tabasco', 'bolognese', 'carbonara', 'ragú', 'picadillo', 'pico de gallo', 'salsa verde', 'tkemali', 'tkemali sauce', 'cranberry sauce', 'mango sauce', 'peace sauce', 'plum sauce', 'mushroom sauce', 'ygourt sauce', 'tziki', 'tziki sauce', 'strawberry sauce', 'harissa', 'oyster sauce', 'mirin', 'wine sauce', 'sweet bean sauce', 'sauce', 'green goddess dressing', 'italian dressing', 'ranch dressing', 'caesar dressing' ,'balsamic vinaigrette', 'thousand island dressing', 'ginger sauce']
+SAUCES = ['enchilada sauce', 'chimichurri', 'tahini sauce', 'tahini', 'pesto', 'peanut sauce', 'roasted red pepper sauce', 'soy sauce', 'barbecue sauce', 'hot sauce', 'tomato sauce', 'romesco sauce', 'cashew sauce', 'teriyaki sauce', 'nuoc cham', 'charmoula', 'yangnyeom sauce', 'buffalo sauce', 'salsa', 'roja salsa', 'salsa roja', 'tomatillo salsa', 'salsa tomatillo', 'avocado salsa', 'tartar sauce', 'marinara', 'alfredo', 'alfredo sauce', 'romesco', 'hollandaise', 'vinaigrett', 'coulis', 'cheese sauce', 'duck sauce', 'salad dressing', 'gravy', 'mushroom gravy', 'worcestershire sauce', 'aioli', 'garlic sauce', 'remoulade', 'fish sauce', 'garum', 'bagna cáuda', 'sriracha sauce', 'tabasco sauce', 'tabasco', 'bolognese', 'carbonara', 'ragú', 'picadillo', 'pico de gallo', 'salsa verde', 'tkemali', 'tkemali sauce', 'cranberry sauce', 'mango sauce', 'peace sauce', 'plum sauce', 'mushroom sauce', 'ygourt sauce', 'tziki', 'tziki sauce', 'strawberry sauce', 'harissa', 'oyster sauce', 'mirin', 'wine sauce', 'sweet bean sauce', 'sauce', 'green goddess dressing', 'italian dressing', 'ranch dressing', 'caesar dressing' ,'balsamic vinaigrette', 'thousand island dressing', 'ginger sauce', 'beef broth', 'chicken broth']
 MISC = ['gelatin', 'xantham gum', 'water']
 # Mass Corpus of all ingredients
 ALL_INGREDIENTS = MEATS + GAME_MEATS + FISH + SHELLFISH + FRUITS + VEGETABLES + GRAINS + SEEDS + NUTS + FLOURS + CARBOHYDRATES + BEANS + DAIRY + OILS + HERBS + SPICES + SWEETS + EXTRACTS + SUGARS + CONDIMENTS + SAUCES + MISC
@@ -57,6 +61,10 @@ UNITS = [
     "quart",
     "pint",
     "clove",
+    "pinch", 
+    "dash", 
+    "cube",
+    "pound"
 ]
 
 # Time Words
@@ -80,7 +88,7 @@ ACTION_TO_TOOL = {'carve': 'carving knife', 'cut': 'knife', 'dice': 'knife',
 # Action Words 
 ACTIONS = ['mix', 'whisk', 'stir', 'toss', 'bake', 'shake', 'preheat', 'heat', 'saute' 'chop', 'slice', 'cut', 'mince', 'grate', 'crush', 'squeeze', 'blend', 'mash', 'fry', 'boil', 'roast', 'broil']
 # Descriptor Words
-INGREDIENT_DESCRIPTOR = ['fresh', 'good', 'heirloom', 'virgin', 'extra virgin', 'ripe', 'organic', 'seedless', 'chopped', 'minced']
+INGREDIENT_DESCRIPTOR = ['fresh', 'good', 'heirloom', 'virgin', 'extra virgin', 'ripe', 'organic', 'seedless', 'chopped', 'minced', 'uncooked', 'grated', 'frozen', 'mixed', 'baby', 'sliced', 'cubed']
 
 
 # Containers for replacement/generation 
@@ -113,10 +121,24 @@ def parseIngredient(ingr: str) -> str:
     # Just add an additional value to the ingrs_dict[ingredient] -> alias_list
     for pos_ingr in ALL_INGREDIENTS:
         # if any match
-        if pos_ingr in ingr:
-            # Set as ingredient, break
-            ingredient = pos_ingr
-            break
+            if pos_ingr in ingr:
+                # Catch 'and' in ingr. Has to be a better way to do this. 
+                if 'and' in ingr:
+                    # Split into list w idxs
+                    split_ingrs = ingr.split()
+                    split_ingr_w_index = enumerate(split_ingrs)
+                    for i,v in split_ingr_w_index:
+                        if v == 'and':
+                            # Get preceding and anteceding elements
+                            first_ingr = split_ingrs[i - 1]
+                            second_ingr = split_ingrs[i + 1]
+                            # Concat to ingredient
+                            ingredient = first_ingr + ' and ' +  second_ingr
+                            break 
+                else: 
+                    # Set as ingredient, break
+                    ingredient = pos_ingr
+                    break
         
     # Split List into Tokens
     words = ingr.split()
@@ -218,7 +240,9 @@ def scrape(url: str) -> 'tuple[list[str], list[str]]':
 
 
 def main():
-    url = 'https://www.allrecipes.com/recipe/237335/spicy-sweet-pork-tenderloin/' #sys.argv[1]
+    url = 'https://www.allrecipes.com/recipe/55151/ravioli-soup/'
+    #'https://www.allrecipes.com/recipe/11679/homemade-mac-and-cheese/'
+    #'https://www.allrecipes.com/recipe/237335/spicy-sweet-pork-tenderloin/' #sys.argv[1]
     ingredients, instructions = scrape(url)
 
     # Parse Ingredients Test
