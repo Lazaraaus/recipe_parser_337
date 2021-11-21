@@ -1,6 +1,7 @@
 import requests
 import sys
 import unicodedata
+import re
 # from parse_ingredients import parse_ingredient
 # from recipe_scrapers import scrape_me
 
@@ -26,20 +27,43 @@ from bs4 import BeautifulSoup
 # Added: extra descriptors
 # Concerns: Units like 'to taste' are going uncaught. Could check ingrs_dict['rest'] string for it but would rather it get caught as a unit. 
 
+# 11/20
+# Fixed: Issues w/ 'and' catch. 
+# Added: Items to descriptors, items to tools, INGREDIENT_STOP_WORDS list
+# Fixed: Bug in parseInstruction -- wasn't properly appending to ingredients list in instr_dict
+# Fixed: Bug with parseIngredient matching shortest str and not longest match
+# Added: Tokens list to instr_dict 
+# Concerns: Need to rework how we're parsing tools. Victor mentioned that a lot of tools are two worders -> 'casserole dish', 'cookie sheet', 'waffle iron'.
+#           Need to grab the prefix as well.
+# Added: Corpora for Tool prefixes, suffixes, and one word tools
+# Fixed: Bug w/ tools not recognized two-word tools properly
+# Concerns: Do we need to parse temp info along with time info? I don't think its relevant for anything except doubling/halving recipe
+
+###############
+#    NEEDS    #
+###############
+# Need to add specific cuts to MEATS corpus -> pork tenderloin, chicken breast, flank steak, etc
+# Add more items to fruit corpus
+# Transformation Functions:
+#   What does it mean to be healthy? Less sodium? trans-fat? more vegetables? 
+#   For Vegetarian, can we just swap proteins for like Impossible Meat or Tofu? Swap Sauces like bolognese for marinara? 
+# Generate Output Functions
+#   Kept the original instruction string intact in the instr_dict so we can use that to build a good output. Definitely not larry's preference
+
 # Corpora for types of Ingredients
-MEATS = ['pork', 'pork tenderloin','pork chop', 'chicken', 'chicken breast', 'chicken wings', 'chicken thighs', 'beef', 'ground beef', 'sausage', 'turkey', 'ground turkey' 'ham', 'goat', 'lamb'] # Need to add specific cuts -> pork tenderloin, chicken breast, etc
+MEATS = ['pork', 'pork tenderloin','pork chop', 'chicken', 'chicken breast', 'chicken wings', 'chicken thighs', 'beef', 'ground beef', 'sausage', 'turkey', 'ground turkey' 'ham', 'goat', 'lamb'] 
 GAME_MEATS = ['pheasant', 'rabbit', 'bison', 'duck', 'goose', 'venison', 'quail']
-FISH = ['tuna', 'catfish', 'trout', 'sardines', 'snapper', 'bass', 'cod', 'squid', 'blowfish', 'fugu', 'octopus', 'salmon', 'swordfish', 'mahi mahi', 'snapper', 'tilapia', 'red snapper', 'herring', 'anchovies', 'haddock', 'flounder', 'rainbow trout', 'alaskan pollock', 'pacific halibut', 'halibut', 'pike', 'atlantic mackerel', 'mackerel', 'branzino', 'fish']
-SHELLFISH = ['lobster', 'clam', 'crab', 'oyster', 'shrimp', 'crawfish', 'mussel', 'scallop', 'shellfish']
+FISH = ['tuna', 'catfish', 'trout', 'sardines', 'snapper', 'bass', 'cod', 'blowfish', 'fugu', 'salmon', 'swordfish', 'mahi mahi', 'snapper', 'tilapia', 'red snapper', 'herring', 'anchovies', 'haddock', 'flounder', 'rainbow trout', 'alaskan pollock', 'pacific halibut', 'halibut', 'pike', 'atlantic mackerel', 'mackerel', 'branzino', 'fish']
+SHELLFISH = ['lobster', 'clam', 'crab', 'oyster', 'shrimp', 'crawfish', 'mussel', 'scallop', 'shellfish', 'octopus', 'squid']
 FRUITS = ['apple', 'banana', 'cherry', 'blueberry', 'raspberry', 'berry', 'strawberry', 'pineapple', 'plum', 'grapes', 'lychee', 'passionfruit', 'blackberry', 'orange', 'lime', 'lemon', 'citrus', 'grapefruit', 'coconut', 'watermelon', 'peach', 'pear', 'pumpkin']
 VEGETABLES = ['broccoli', 'onion', 'shallot', 'leek', 'fennel', 'green bean', 'bell pepper', 'spinach', 'cabbage', 'asparagus', 'greens', 'pea', 'green pea', 'tomato', 'potato', 'sweet potato', 'carrot', 'celery', 'mushroom', 'cucumber', 'pickles', 'vegetable']
 GRAINS = ['rice', 'quinoa', 'maize', 'cornmeal', 'barley', 'wheat', 'oat', 'buckwheat', 'bulgur', 'millet', 'rye', 'amaranth']
 SEEDS = ['sunflower seeds', 'flaxseeds', 'poppy seeds', 'pumpkin seeds', 'caraway seeds', 'chia seeds', 'sesame seeds', 'nigella seeds']
 NUTS = ['almond', 'peanut', 'peanut butter', 'walnut', 'pecans', 'black walnut', 'chestnuts', 'cashews', 'hazelnuts', 'pistachios', 'brazil nuts', 'macadamia nuts', 'pine nuts', 'baru nuts', 'acorns', 'hickory nuts', 'pili nuts', 'sacha inchi', 'tiger nuts']
-FLOURS = ['flour', 'wheat flour', 'pastry flour', 'cake flour', 'bread flour', 'gluten-free flour', 'gluten free flour', 'sprouted flour', 'rice flour', 'soy flour', 'noodle flour', 'corn flour']
-CARBOHYDRATES = ['noodles', 'noodle', 'pasta', 'tortilla', 'tortillas', 'bread', 'breads', 'bread crumbs' 'loaves', 'loaf', 'macaroni', 'spaghetti', 'farfalle', 'angel hair', 'rotini', 'penne', 'lasagna', 'cannelloni', 'elbow macaroni', 'gnocchi', 'bow-tie', 'ravioli', 'tortellini']
+FLOURS = ['flour', 'wheat flour', 'pastry flour', 'cake flour', 'bread flour', 'gluten-free flour', 'gluten free flour', 'sprouted flour', 'rice flour', 'soy flour', 'noodle flour', 'corn flour', 'chestnut flower']
+CARBOHYDRATES = ['noodles', 'noodle', 'pasta', 'tortilla', 'tortillas', 'bread', 'breads', 'bread crumbs', 'loaves', 'loaf', 'macaroni', 'spaghetti', 'farfalle', 'angel hair', 'rotini', 'penne', 'lasagna', 'cannelloni', 'elbow macaroni', 'gnocchi', 'bow-tie', 'ravioli', 'tortellini']
 BEANS = ['black beans', 'cannellini beans', 'kidney beans', 'garbanzo beans', 'navy beans', 'great northern beans', 'pinto beans', 'lima beans', 'fava beans', 'mung beans', 'red beans', 'soybeans', 'flageolet beans', 'black-eyed peas', 'lentils', 'chickpeas']
-DAIRY = ['milk', 'yogurt', 'cheese', 'butter', 'cream', 'heavy cream', 'sour cream', 'whipped cream', 'egg', 'eggs', 'ice cream']
+DAIRY = ['milk', 'yogurt', 'cheese', 'butter', 'margarine', 'cream', 'heavy cream', 'sour cream', 'whipped cream', 'egg', 'eggs', 'ice cream']
 OILS = ['olive oil', 'vegetable oil', 'coconut oil', 'sesame oil', 'canola oil', 'cooking oil', 'amaranth oil', 'oil']
 HERBS = ['basil', 'bay leaf', 'cilantro', 'chives', 'dill', 'lemongrass', 'lemon grass', 'lavender', 'marjoram', 'mint', 'rosemary', 'sage', 'oregano', 'parsley', 'thyme', 'tarragon', 'savory', 'rose', 'garlic']
 SPICES = ['salt', 'black pepper', 'anise', 'caraway', 'cardamom', 'celery seed', 'chile', 'chili powder', 'cayenne', 'poppy seed', 'cinnamon', 'cloves', 'coriander', 'cumin', 'dill seed', 'fenugreek', 'ginger', 'ginger root', 'juniper berries', 'mace', 'nigella', 'nutmeg', 'peppercorns', 'saffron', 'star anise', 'sumac', 'turmeric', 'cajun', 'cajun blackened', 'shichimi', 'togarashi', 'ginger', 'sesame seed', 'curry powder', 'masala', 'five spice', 'jerk', 'baharat', 'zhug','paprika', 'chicken bouillon', 'beef bouillon', 'seasoning']
@@ -82,12 +106,25 @@ TOOLS = ['pan', 'bowl', 'baster', 'saucepan', 'knife', 'oven', 'beanpot', 'chip 
          'mortar and pestle', 'nutcracker', 'nutmeg grater', 'oven glove', 'blender', 'fryer', 'pastry bush', 'pastry wheel', 'peeler', 'pepper mill',
          'pizza cutter', 'masher', 'potato ricer', 'pot-holder', 'rolling pin', 'salt shaker', 'sieve', 'spoon', 'fork', 'spatula', 'spider', 'tin opener',
          'tongs', 'whisk', 'wooden spoon', 'zester', 'microwave', 'cylinder', 'Aluminum foil', 'steamer', 'broiler rack', 'grate', 'shallow glass dish', 'wok',
-         'dish', 'broiler tray', 'slow cooker']
+         'dish', 'broiler tray', 'slow cooker', 'saucepan', 'peeler', 'pin', 'frying', 'board', 'foil']
+
+# Tool Prefixes
+PREFIXES = ['casserole', 'cookie', 'baking', 'frying', 'rolling', 'souffle', 'sauce', 'saute', 'roasting', 'pastry', 'cutting', 'dutch', 'crepe', 'food', 
+            'pressure', 'wonder', 'biscuit', 'measuring', 'pastry', 'pizza', 'broiler', 'slow']
+# Tool Suffixes
+SUFFIXES = ['dish', 'pan', 'peeler', 'grater', 'timer', 'slicer', 'knife', 'mill', 'tray', 'board', 'boiler', 'pot', 'scraper', 'spoon', 'cup', 'pitter', 
+            'baller', 'sifter', 'wheel', 'press', 'oven', 'rack', 'processor', 'cooker', 'pot', 'baller', 'grater', 'brush', 'cutter', 'baster']
+# Simple Tools --> one word
+SIMPLE_TOOLS = ['bowl', 'saucepan', 'knife', 'oven', 'funnel', 'griddle', 'skillet', 'cheesecloth', 'karahi', 'kettle', 'grinder', 'ramekin',
+                 'tajine', 'chinoise', 'cleaver', 'corkscrew', 'mandoline', 'colander', 'tenderiser', 'thermometer', 'nutcracker', 'blender', 'fryer', 
+                'masher', 'sieve', 'spatula', 'tongs', 'whisk', 'zester', 'microwave', 'cylinder', 'foil', 'steamer', 'fork', 'wok']
 # Action2Tool dict
 ACTION_TO_TOOL = {'carve': 'carving knife', 'cut': 'knife', 'dice': 'knife',
                   'chop': 'knife', 'brush': 'brush', 'slice': 'knife', 'chopped': 'knife', 'peeled': 'peeler', 'melted': 'microwave', 'diced':'knife'}
 # Action Words 
-ACTIONS = ['mix', 'whisk', 'stir', 'toss', 'bake', 'shake', 'preheat', 'heat', 'saute' 'chop', 'slice', 'cut', 'mince', 'grate', 'crush', 'squeeze', 'blend', 'mash', 'fry', 'boil', 'roast', 'broil']
+ACTIONS = ['mix', 'whisk', 'stir', 'toss', 'bake', 'shake', 'preheat', 'heat', 'saute' 'chop', 'slice', 'cut', 'mince', 'grate', 'crush', 'squeeze', 'blend', 'mash', 'fry', 'boil', 'roast', 'broil', 'cook', 'melt', 'sprinkle', 'press', 'tenderize']
+ACTIONS = ACTIONS + list(ACTION_TO_TOOL.values())
+
 # Descriptor Words
 INGREDIENT_DESCRIPTOR = ['fresh', 'good', 'heirloom', 'virgin', 'extra virgin', 'ripe', 'organic', 'seedless', 'chopped', 'minced', 'uncooked', 'grated', 'frozen', 'mixed', 'baby', 'sliced', 'cubed', 'small', 'large', 'shredded', 'ground', 'finely', 'salted', 'unsalted', 'diced']
 # Stop Words for Ingredient parsing
@@ -114,13 +151,14 @@ def parseIngredients(ingrs: list) -> dict:
     return ingrs_dict
 
 def parseIngredient(ingr: str) -> str:
-    quant, unit, rest, descriptor_list, ingredient = None, None, None, [], None
+    quant, unit, rest, descriptor_list, ingredient = None, None, None, [], ''
     # Find Ingr Match in whole str, splitting messes up matching. I.E., 'soy sauce' becomes 'soy', 'sauce'
-    # Loop through all ingredients
     # Finding smallest matching str, need to find largest matching str
     # I think I can check for matches that have a larger length than the previous
     # Might not need too, recipes tend to only use the term 'pork' in instructions to refer to the ingredient 'pork tenderloin' 
     # Just add an additional value to the ingrs_dict[ingredient] -> alias_list
+
+    # Loop through all ingredients
     for pos_ingr in ALL_INGREDIENTS:
         # if any match
             if pos_ingr in ingr:
@@ -145,8 +183,7 @@ def parseIngredient(ingr: str) -> str:
                             break 
                 else: 
                     # Set as ingredient, break
-                    ingredient = pos_ingr
-                    break
+                    ingredient = max(pos_ingr, ingredient)
         
     # Split List into Tokens
     words = ingr.split()
@@ -167,45 +204,71 @@ def parseIngredient(ingr: str) -> str:
             break
     return quant, unit, descriptor_list, ingredient, rest
 
-def parseInstructions(instructions: str) -> dict:
+def parseInstructions(instructions: str, ingredients: list) -> dict:
     # I think I have to add ingredients strs, definitely have to. I'm a dunce. Can add keys from ingr_dict 
     """ Function for Parsing Instructions"""
     # Create dict to hold instruction
     instruction_dict = {}
     for i,v in enumerate(instructions):
-        instruction_dict[i + 1] = parseInstruction(v)
+        instruction_dict[i + 1] = parseInstruction(v, ingredients)
 
     # Return Dict
     return instruction_dict
 
-def parseInstruction(instr: str) -> dict:
+def parseInstruction(instr: str, ingredients: list) -> dict:
     # Needs ingredients for recipe as input
     """ Function for parsing individual instructions"""
     # Create dict for instruction
     instr_dict = {}
+    # Split instr str into tokens
+    toks = instr.split()
     # Create keys for necessary data
     instr_dict['ingredients'] = []
     instr_dict['tools'] = []
     instr_dict['action'] = []
     instr_dict['time'] = []
+    instr_dict['tokens'] = []
     # Split instruction into tokens, should we use Spacy to tokenize AND tag? 
     # Verbs == Actions, Tools == Nouns
     # Could also mutate an entity ruler and do entity recognition
     # String search for now
-    toks = instr.split()
     # Loop through tokens
-    for i,v in enumerate(instr):
+    for i,v in enumerate(toks):
+        word = v.lower()
+        word = re.sub(r'[^\w\s]', '', word)
         # Check for time
-        if v in TIMES:
+        if word in TIMES:
             # append v and instr[i - 1] -> '10 minutes'
-            instr_dict['time'].append(v + ' ' + instr[i - 1])
+            instr_dict['time'].append(toks[i - 1].lower() + ' ' + word)
+            instr_dict['tokens'].append('time')
         # Check for Tools
+        elif word in SUFFIXES:
+            if toks[i - 1] in PREFIXES or toks[i - 1] in ALL_INGREDIENTS:
+                # append prefix + suffix
+                instr_dict['tools'].append(toks[i - 1].lower() + ' ' + word)
+                instr_dict['tokens'].append('tool')
+        elif word in SIMPLE_TOOLS:
+            instr_dict['tools'].append(word)
+            instr_dict['tokens'].append('tool')
         # Check for Actions
+        elif word in ACTIONS:
+            instr_dict['action'].append(word)
+            instr_dict['tokens'].append('action')
+            # Check if action maps to tool
+            if word in ACTION_TO_TOOL.keys():
+                instr_dict['tools'].append(ACTION_TO_TOOL[word])
+                instr_dict['tokens'].append('tool')
         # Check for ingredients
+        elif word in ingredients:
+            instr_dict['ingredients'].append(word)
+            instr_dict['tokens'].append('ingredient')
+        # If not any 
+        else:
+            # Keep structure for string sub
+            instr_dict['tokens'].append(v)
 
     # Return Dict
-    pass
-
+    return instr_dict
 
 def parseTools(txt: str) -> list:
     recipe_tools = []
@@ -248,15 +311,18 @@ def scrape(url: str) -> 'tuple[list[str], list[str]]':
 
 
 def main():
-    url = 'https://www.allrecipes.com/recipe/281710/pumpkin-ravioli-with-sage-brown-butter-sauce/'
+    url = 'https://www.allrecipes.com/recipe/11679/homemade-mac-and-cheese/'
     #'https://www.allrecipes.com/recipe/55151/ravioli-soup/'
-    #'https://www.allrecipes.com/recipe/11679/homemade-mac-and-cheese/'
+    #'https://www.allrecipes.com/recipe/281710/pumpkin-ravioli-with-sage-brown-butter-sauce/'
+    
     #'https://www.allrecipes.com/recipe/237335/spicy-sweet-pork-tenderloin/' #sys.argv[1]
     ingredients, instructions = scrape(url)
 
     # Parse Ingredients Test
     ingr_dict = parseIngredients(ingredients)
-    
+    ingr_dict_keys = ingr_dict.keys() 
+    instr_dict = parseInstructions(instructions, list(ingr_dict_keys))
+
     for ingr in ingredients:
         print(ingr)
         tools = parseTools(ingr)
