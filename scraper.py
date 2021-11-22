@@ -52,7 +52,7 @@ from bs4 import BeautifulSoup
 
 # Corpora for types of Ingredients
 MEATS = ['pork', 'pork tenderloin', 'pork chop', 'chicken', 'chicken breast', 'chicken wings', 'chicken thighs', 'beef', 'ground beef', 'sausage', 'turkey', 'ground turkey' 'ham', 'goat',
-         'lamb', 'steak', 'veal', 'ground veal', 'ground lamb', 'veal chops', 'lamb chops', 'turkey breast', 'filet mignon', 'bacon', 'pastrami', 'roast beef', 'salami', 'corn beef', 'prosciutto', 'ribs', 'ground chuck', 'chicken cutlet', 'pork loin', 'bologna', 'drumsticks', 'ribeye', 'kebab', 'turkey bacon']
+         'lamb', 'steak', 'veal', 'ground veal', 'ground lamb', 'veal chops', 'lamb chops', 'turkey breast', 'filet mignon', 'bacon', 'pastrami', 'roast beef', 'salami', 'corn beef', 'prosciutto', 'ribs', 'ground chuck', 'chicken cutlet', 'pork loin', 'bologna', 'drumsticks', 'ribeye', 'kebab', 'turkey bacon', 'pancetta', 'capicola']
 GAME_MEATS = ['pheasant', 'rabbit', 'bison', 'duck', 'goose', 'venison', 'quail']
 FISH = ['tuna', 'catfish', 'trout', 'sardines', 'snapper', 'bass', 'cod', 'blowfish', 'fugu', 'salmon', 'swordfish', 'mahi mahi', 'snapper', 'tilapia', 'red snapper', 'herring', 'anchovies', 'haddock', 'flounder', 'rainbow trout', 'alaskan pollock', 'pacific halibut', 'halibut', 'pike', 'atlantic mackerel', 'mackerel', 'branzino', 'fish']
 SHELLFISH = ['lobster', 'clam', 'crab', 'oyster', 'shrimp', 'crawfish', 'mussel', 'scallop', 'shellfish', 'octopus', 'squid']
@@ -62,7 +62,7 @@ GRAINS = ['rice', 'quinoa', 'maize', 'cornmeal', 'barley', 'wheat', 'oat', 'buck
 SEEDS = ['sunflower seeds', 'flaxseeds', 'poppy seeds', 'pumpkin seeds', 'caraway seeds', 'chia seeds', 'sesame seeds', 'nigella seeds']
 NUTS = ['almond', 'peanut', 'peanut butter', 'walnut', 'pecans', 'black walnut', 'chestnuts', 'cashews', 'hazelnuts', 'pistachios', 'brazil nuts', 'macadamia nuts', 'pine nuts', 'baru nuts', 'acorns', 'hickory nuts', 'pili nuts', 'sacha inchi', 'tiger nuts']
 FLOURS = ['flour', 'wheat flour', 'pastry flour', 'cake flour', 'bread flour', 'gluten-free flour', 'gluten free flour', 'sprouted flour', 'rice flour', 'soy flour', 'noodle flour', 'corn flour', 'chestnut flower']
-CARBOHYDRATES = ['noodles', 'noodle', 'pasta', 'tortilla', 'tortillas', 'bread', 'breads', 'bread crumbs', 'loaves', 'loaf', 'macaroni', 'spaghetti', 'farfalle', 'angel hair', 'rotini', 'penne', 'lasagna', 'cannelloni', 'elbow macaroni', 'gnocchi', 'bow-tie', 'ravioli', 'tortellini']
+CARBOHYDRATES = ['noodles', 'noodle', 'pasta', 'tortilla', 'tortillas', 'bread', 'breads', 'bread crumbs', 'loaves', 'loaf', 'macaroni', 'spaghetti', 'farfalle', 'angel hair', 'rotini', 'penne', 'lasagna', 'cannelloni', 'elbow macaroni', 'gnocchi', 'bow-tie', 'ravioli', 'tortellini', 'soba noodles', 'udon noodles']
 BEANS = ['black beans', 'cannellini beans', 'kidney beans', 'garbanzo beans', 'navy beans', 'great northern beans', 'pinto beans', 'lima beans', 'fava beans', 'mung beans', 'red beans', 'soybeans', 'flageolet beans', 'black-eyed peas', 'lentils', 'chickpeas']
 DAIRY = ['milk', 'yogurt', 'cheese', 'butter', 'margarine', 'cream', 'heavy cream', 'sour cream', 'whipped cream', 'egg', 'eggs', 'ice cream']
 OILS = ['olive oil', 'vegetable oil', 'coconut oil', 'sesame oil', 'canola oil', 'cooking oil', 'amaranth oil', 'oil']
@@ -140,6 +140,12 @@ INGREDIENT_STOP_WORDS = ['ground', 'black']
 #Just delete any occurence of oil, frying -> baking/air frying
 #Less carbs -> more vegetables
 HEALTHY_TO_UNHEALTHY = {'beef': 'turkey', 'fry': 'bake', 'bacon': 'turkey bacon', 'pasta': 'whole-grain pasta', 'sour cream': 'greek yogurt', 'rice': 'quinoa', 'lamb': 'turkey'}
+
+#Ingredients indicative of a cuisine 
+#Tempura as a frying technique
+JAPANESE = ['soy sauce', 'tuna', 'ahi tuna', 'rice', 'tamago', 'daikon', 'tempura chicken', 'tempura', 'salmon', 'octopus', 'squid', 'natto', 'sesame oil', 'sesame seeds', 'sake', 'mirin', 'rice vinegar', 'miso', 'dashi', 'tonkatsu sauce', 'soba noodles', 'udon noodles', 'ramen noodles', 'panko breadcrumbs', 'corn starch', 'togarashi', 'nori', 'ginger', 'scallion', 'tofu', 'shiitake mushroom', 'shimeji mushroom', 'ume', 'shiso', 'teriyaki sauce', 'eggs', 'wasabi', 'red bean paste', 'matcha', 'mochi', 'beef']
+ITALIAN = ['pasta', 'tomato', 'basil', 'oregano', 'garlic', 'cheese', 'olive oil', 'balsamic vinegar', 'caper', 'veal', 'beef', 'chicken', 'pork', 'prosciutto', 'bolognese sauce', 'pomodoro sauce', 'pesto', 'pancetta', 'porcini mushrooms', 'romano cheese', 'mozzarella cheese', 'parmigiano cheese', 'parmigiano-reggiano', 'wine', 'polenta', 'swordfish', 'artichokes', 'risotto', 'ricotta cheese', 'zucchini', 'eggplants', 'onion', 'peppers', 'penne pasta', 'spaghetti', 'linguine', 'fusili', 'lasgane', 'rigatoni', 'gnocchi', 'ravioli', 'tortellini', 'pizza', 'fontina', 'salami', 'panna cotta', 'tiramisu', 'pistachio', 'cannoli', 'thyme', 'rosemary', 'red pepper flake', 'sage', 'lemon', 'pine nuts', 'anchovies', 'sardines', 'bread crumbs', 'bay leaf', 'capicola', 'burrata']
+
 
 
 # Parsing Functions
