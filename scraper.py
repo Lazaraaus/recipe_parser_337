@@ -322,6 +322,54 @@ def scrape(url: str) -> 'tuple[list[str], list[str]]':
     
     return ingredients, instructions
 
+# Macey 11/21
+# Humpty Dumpty the instructions back together again
+# Added halving/doubling transformation in this `write_out` function
+# Things to fix: "30 30 minutes" for the mac and cheese recipe (saving time inconsistently)
+# Things to fix: changing units when going out of range
+def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str):
+    """`transformation` can be "none", "halved", "doubled". Will eventually be able to be substitutions. """
+    lines = ["Ingredients", ""]
+    for ingr_lst in list(ingr_dict.values()):
+        ingr_phrase = ["\t-"]
+        if transformation == "halved":
+            ingr_phrase.append(str(ingr_lst[0] / 2))
+        elif transformation == "doubled":
+            ingr_phrase.append(str(ingr_lst[0] * 2))
+        for ingr_part in ingr_lst[(1 if transformation in ["halved", "doubled"] else 0):]:
+            if isinstance(ingr_part, list):
+                if len(ingr_part) > 0:
+                    ingr_phrase.append(" ".join([str(subpart) for subpart in ingr_part]))
+            else:
+                ingr_phrase.append(str(ingr_part))
+        lines.append(" ".join(ingr_phrase))
+    
+    lines.extend(["", "", "Instructions", ""])
+    for i in range(1, len(instr_dict) + 1):
+        instr_phrase = ["\t" + str(i) + "."]
+        ingredients, tools, action, time = instr_dict[i]["ingredients"], instr_dict[i]["tools"], instr_dict[i]["action"], instr_dict[i]["time"]
+        i_ingr, i_tool, i_act, i_time = 0, 0, 0, 0
+        for word in instr_dict[i]["tokens"]:
+            if word == "ingredient":
+                instr_phrase.append(ingredients[i_ingr])
+                i_ingr += 1
+            elif word == "tool":
+                instr_phrase.append(tools[i_tool])
+                i_tool += 1
+            elif word == "action":
+                instr_phrase.append(action[i_act])
+                i_act += 1
+            elif word == "time":
+                instr_phrase.append(time[i_time])
+                i_time += 1
+            else:
+                instr_phrase.append(word)
+        lines.append(" ".join(instr_phrase))
+
+
+    with open(file, "w") as f:
+        f.writelines("\n".join(lines))
+
 
 def main():
     url = 'https://www.allrecipes.com/recipe/11679/homemade-mac-and-cheese/'
@@ -336,6 +384,9 @@ def main():
     ingr_dict_keys = ingr_dict.keys() 
     instr_dict = parseInstructions(instructions, list(ingr_dict_keys))
 
+    write_out(ingr_dict, instr_dict, "doubled", "out.txt")
+
+    cmd_output = """
     for ingr in ingredients:
         print(ingr)
         tools = parseTools(ingr)
@@ -350,6 +401,7 @@ def main():
         tools = parseTools(instr)
         print("Tools: ", tools)
         steps += 1
+    """
 
     #Test Alternative Scraper/Parser
     # scraper = scrape_me(url)
