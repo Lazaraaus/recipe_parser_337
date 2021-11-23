@@ -280,10 +280,22 @@ def parseInstruction(instr: str, ingredients: list) -> dict:
     # Verbs == Actions, Tools == Nouns
     # Could also mutate an entity ruler and do entity recognition
     # String search for now
+    # Ignore words
+    ignore_words = []
+    # Add two-part ingredients to ignore_words as individual words
+    for ingr in ingredients:
+        # If you can split into more than 1 word
+        ingr_split = ingr.split()
+        if len(ingr_split) > 1:
+            # add individuals to ignore words list
+            for word in ingr_split:
+                ignore_words.append(word)
+    
     # Loop through tokens
     for i,v in enumerate(toks):
         word = v.lower()
         word = re.sub(r'[^\w\s]', '', word)
+        combo_word = toks[i - 1] + ' ' + word
         # Check for time
         if word in TIMES:
             # append v and instr[i - 1] -> '10 minutes'
@@ -310,18 +322,22 @@ def parseInstruction(instr: str, ingredients: list) -> dict:
         elif word in ACTIONS:
             instr_dict['action'].append(word)
             instr_dict['tokens'].append('action')
-            # Check if action maps to tool
-            # if word in ACTION_TO_TOOL.keys():
-            #     instr_dict['tools'].append(ACTION_TO_TOOL[word])
-            #     instr_dict['tokens'].append('tool')
+       
         # Check for ingredients
         elif word in ingredients:
             instr_dict['ingredients'].append(word)
             instr_dict['tokens'].append('ingredient')
+
+        # Check for combo word
+        elif combo_word in ingredients:
+            instr_dict['ingredients'].append(combo_word)
+            instr_dict['tokens'].append('ingredient')
+
         # If not any 
         else:
             # Keep structure for string sub
-            instr_dict['tokens'].append(v)
+            if v not in ignore_words:
+                instr_dict['tokens'].append(v)
 
     # Return Dict
     return instr_dict
@@ -429,6 +445,7 @@ CONVERSIONS = {
 # Things to fix: "30 30 minutes" for the mac and cheese recipe (saving time inconsistently)
 # Things to fix: changing units when going out of range
 def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str):
+    old_to_new = {}
     lines = ["Ingredients", ""]
     ingr_transform_dict = {}
     for ingr_lst in list(ingr_dict.values()):
@@ -506,12 +523,15 @@ def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str)
                     # Check if ground beef, ground turkey, etc
                     if 'ground' in ingr_phrase_add:
                         # If so, use tempeh
-                        ingr_phrase_add = VEGETARIAN['meat_subs'][2]
+                        old_to_new[ingr_phrase_add] = VEGETARIAN['meat_subs'][2]
+                        ingr_phrase_add = old_to_new[ingr_phrase_add]
                     else:
                         # Otherwise can use any meat sub
                         random_index = random.randrange(len(VEGETARIAN['meat_subs']))
-                        ingr_phrase_add = VEGETARIAN["meat_subs"][random_index]
-                    print("This ain't vegetarian")
+                        # Set old ingr as key to new ingr
+                        old_to_new[ingr_phrase_add] = VEGETARIAN["meat_subs"][random_index]
+                        # Set old ingr to new ingr
+                        ingr_phrase_add = old_to_new[ingr_phrase_add]
 
                 # Check if in Sauces
                 if ingr_phrase_add in SAUCES:
@@ -519,22 +539,41 @@ def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str)
                     if ingr_phrase_add in VEGETARIAN['meat_sauces']:
                         # If so, use any non meat sauce
                         random_index = random.randrange(len(VEGETARIAN['meat_sauce_subs']))
-                        ingr_phrase_add = VEGETARIAN['meat_sauce_subs'][random_index]
+                        # Set old ingr as key to new ingr
+                        old_to_new[ingr_phrase_add] = VEGETARIAN["meat_sauce_subs"][random_index]
+                        # Set old ingr to new ingr
+                        ingr_phrase_add = old_to_new[ingr_phrase_add]
 
                     # Check if meat broth
                     elif ingr_phrase_add == "beef broth" or ingr_phrase_add == "chicken broth":
-                        # If so use veggie broth
-                        ingr_phrase_add = VEGETARIAN["meat_broth_subs"][0]
-                    print("This ain't vegetarian")
+                        # Set old ingr as key to new ingr
+                        old_to_new[ingr_phrase_add] = VEGETARIAN["meat_broth_subs"][0]
+                        # Set old ingr to new ingr
+                        ingr_phrase_add = old_to_new[ingr_phrase_add]
 
                 # Check if meat based fat
                 if ingr_phrase_add == 'lard':
                     # If so, sub vegetable shortening
-                    print("This ain't vegetarian")
+                    # Set old ingr as key to new ingr
+                    old_to_new[ingr_phrase_add] = VEGETARIAN['meat_fat_subs'][0]
+                    # Set old ingr to new ingr
+                    ingr_phrase_add = old_to_new[ingr_phrase_add]
 
             # Un vegetarian transform
             if transformation == "unvegetarian":
-                pass
+                # Check if in meat_subs
+                if ingr_phrase_add in VEGETARIAN['meat_subs']:
+                    # Sub w/ a meat
+                    if ingr_phrase_add == 'tempeh':
+                        # If tempeh, sub w/ ground beef, ground turkey, etc
+                        old_to_new[ingr_phrase_add] = 'ground beef'
+                        # set old ingr to new ingr
+                        ingr_phrase_add = 'ground beef'
+                    else:
+                        # Otherwise sub w/ chicke, veal, lamb, etc
+                        old_to_new[ingr_phrase_add] = 'chicken'
+                        # set old ingr to new ingr
+                        ingr_phrase_add = 'chicken'
             
             # Healthy Transformation
             if transformation == "healthy":
@@ -554,8 +593,14 @@ def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str)
         i_ingr, i_tool, i_act, i_time = 0, 0, 0, 0
         for word in instr_dict[i]["tokens"]:
             if word == "ingredient":
-                instr_phrase.append(ingredients[i_ingr])
-                i_ingr += 1
+                # Check if word in old_to_new
+                if ingredients[i_ingr] in old_to_new.keys():
+                    # If so, append transformed ingredient
+                    instr_phrase.append(old_to_new[ingredients[i_ingr]])
+                    i_ingr += 1
+                else:
+                    instr_phrase.append(ingredients[i_ingr])
+                    i_ingr += 1
             elif word == "tool":
                 instr_phrase.append(tools[i_tool])
                 i_tool += 1
@@ -601,12 +646,14 @@ def get_ingredients_from_ingrs_dict(ingr_dict):
 def main():
     transformation, out, url = sys.argv[1:4]
     if url == "test":
-        url = 'https://www.allrecipes.com/recipe/281710/pumpkin-ravioli-with-sage-brown-butter-sauce/'
+        url = 'https://www.allrecipes.com/recipe/237335/spicy-sweet-pork-tenderloin/' 
+        #"https://www.allrecipes.com/recipe/279351/skillet-burgers/" 
+        #'https://www.allrecipes.com/recipe/281710/pumpkin-ravioli-with-sage-brown-butter-sauce/'
         #'https://www.allrecipes.com/recipe/11679/homemade-mac-and-cheese/' 
         #'https://www.allrecipes.com/recipe/246553/bakery-style-pizza/'
-
         #'https://www.allrecipes.com/recipe/55151/ravioli-soup/'
-        #'https://www.allrecipes.com/recipe/237335/spicy-sweet-pork-tenderloin/'   
+           
+
     ingredients, instructions = scrape(url)
 
     # Parse Ingredients Test
