@@ -41,6 +41,12 @@ from bs4 import BeautifulSoup
 # Fixed: Bug w/ tools not recognized two-word tools properly
 # Concerns: Do we need to parse temp info along with time info? I don't think its relevant for anything except doubling/halving recipe
 
+# 11/23
+# Changed parseIngredients to use 1-index as keys and store the ingredient as a value
+# Fixed double time bug --> added case to remove time prefix from tokens
+# Fixed missing tool bug --> added case to properly handle simple tools that are also suffixes
+# Added func to get list of ingrs from ingrs_dict
+
 ###############
 #    NEEDS    #
 ###############
@@ -129,7 +135,7 @@ ACTIONS = ['mix', 'whisk', 'stir', 'toss', 'bake', 'shake', 'preheat', 'heat', '
 ACTIONS = ACTIONS + list(ACTION_TO_TOOL.values())
 
 # Descriptor Words
-INGREDIENT_DESCRIPTOR = ['fresh', 'good', 'heirloom', 'virgin', 'extra virgin', 'ripe', 'organic', 'seedless', 'chopped', 'minced', 'uncooked', 'grated', 'frozen', 'mixed', 'baby', 'sliced', 'cubed', 'small', 'large', 'shredded', 'ground', 'finely', 'salted', 'unsalted', 'diced']
+INGREDIENT_DESCRIPTOR = ['fresh', 'good', 'heirloom', 'virgin', 'extra virgin', 'ripe', 'organic', 'seedless', 'chopped', 'minced', 'uncooked', 'grated', 'frozen', 'mixed', 'baby', 'sliced', 'cubed', 'small', 'large', 'shredded', 'ground', 'finely', 'salted', 'unsalted', 'diced', 'sharp']
 # Stop Words for Ingredient parsing
 INGREDIENT_STOP_WORDS = ['ground', 'black']
 
@@ -157,12 +163,16 @@ def parseIngredients(ingrs: list) -> dict:
     """ Function to parse list of ingredients into a dict"""
     # Create Dict to hold ingrs
     ingrs_dict = {}
+    # Counter for ingrs_dict
+    counter = 1
     # Loop through ingrs
     for ingr in ingrs:
         # Parse individual ingr
         quant, unit, descriptor_list, ingredient, rest = parseIngredient(ingr)
         # Assign ingr as key, ingr attribute list as value
-        ingrs_dict[ingredient] = [quant, unit, descriptor_list, rest]
+        ingrs_dict[counter] = [quant, unit, descriptor_list, ingredient, rest]
+        # Incr counter
+        counter += 1
 
     # Return ingrs dict 
     return ingrs_dict
@@ -541,17 +551,31 @@ for instr in instructions:
     steps += 1
 """
 
+# Func to get ingrs list from ingrs dict
+def get_ingredients_from_ingrs_dict(ingr_dict):
+    # Create empty list
+    ingrs_list = []
+    # Loop through values of ingr_dict
+    for ingr_dict_values in ingr_dict.values():
+        # Get 2nd to last item (ingredient) from value list
+        ingrs_list.append(ingr_dict_values[-2])
+    return ingrs_list
+
 def main():
     transformation, out, url = sys.argv[1:4]
     if url == "test":
-        url = 'https://www.allrecipes.com/recipe/281710/pumpkin-ravioli-with-sage-brown-butter-sauce/'
+        url = 'https://www.allrecipes.com/recipe/11679/homemade-mac-and-cheese/'
+            #'https://www.allrecipes.com/recipe/281710/pumpkin-ravioli-with-sage-brown-butter-sauce/'
     
     ingredients, instructions = scrape(url)
 
     # Parse Ingredients Test
     ingr_dict = parseIngredients(ingredients)
-    ingr_dict_keys = ingr_dict.keys() 
-    instr_dict = parseInstructions(instructions, list(ingr_dict_keys))
+    # Creat
+    ingrs_list = get_ingredients_from_ingrs_dict(ingr_dict)
+
+    #ingr_dict_keys = ingr_dict.keys() 
+    instr_dict = parseInstructions(instructions, ingrs_list)
 
     if out == "cmd":
         print(json.dumps(ingr_dict, indent=4))
