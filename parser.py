@@ -4,8 +4,6 @@ import unicodedata
 import re
 import random
 import json
-# from parse_ingredients import parse_ingredient
-# from recipe_scrapers import scrape_me
 
 from bs4 import BeautifulSoup
 
@@ -46,6 +44,10 @@ from bs4 import BeautifulSoup
 # Fixed double time bug --> added case to remove time prefix from tokens
 # Fixed missing tool bug --> added case to properly handle simple tools that are also suffixes
 # Added func to get list of ingrs from ingrs_dict
+# Fixed not handling punc properly in parseIngredient
+# Fixed issue w/ outputting None in ingredients
+# Fixed issue w/ outputting in wrong order
+# Added: Healthy Transform, Unhealthy Transform, Vegetarian Transform, Unveg Transform
 
 ###############
 #    NEEDS    #
@@ -60,19 +62,19 @@ from bs4 import BeautifulSoup
 
 # Corpora for types of Ingredients
 MEATS = ['pork', 'pork tenderloin', 'pork chop', 'chicken', 'chicken breast', 'chicken wings', 'chicken thighs', 'beef', 'ground beef', 'sausage', 'turkey', 'ground turkey' 'ham', 'goat',
-         'lamb', 'steak', 'veal', 'ground veal', 'ground lamb', 'veal chops', 'lamb chops', 'turkey breast', 'filet mignon', 'bacon', 'pastrami', 'roast beef', 'salami', 'corn beef', 'prosciutto', 'ribs', 'ground chuck', 'chicken cutlet', 'pork loin', 'bologna', 'drumsticks', 'ribeye', 'kebab', 'turkey bacon', 'pancetta', 'capicola']
+         'lamb', 'steak', 'veal', 'ground veal', 'ground lamb', 'veal chops', 'lamb chops', 'turkey breast', 'filet mignon', 'bacon', 'pastrami', 'roast beef', 'salami', 'corn beef', 'prosciutto', 'ribs', 'ground chuck', 'chicken cutlet', 'pork loin', 'bologna', 'drumsticks', 'ribeye', 'kebab', 'turkey bacon', 'pancetta', 'capicola', 'lunch meat', 'luncheon meat']
 GAME_MEATS = ['pheasant', 'rabbit', 'bison', 'duck', 'goose', 'venison', 'quail']
 FISH = ['tuna', 'catfish', 'trout', 'sardines', 'snapper', 'bass', 'cod', 'blowfish', 'fugu', 'salmon', 'swordfish', 'mahi mahi', 'snapper', 'tilapia', 'red snapper', 'herring', 'anchovies', 'haddock', 'flounder', 'rainbow trout', 'alaskan pollock', 'pacific halibut', 'halibut', 'pike', 'atlantic mackerel', 'mackerel', 'branzino', 'fish']
 SHELLFISH = ['lobster', 'clam', 'crab', 'oyster', 'shrimp', 'crawfish', 'mussel', 'scallop', 'shellfish', 'octopus', 'squid']
 FRUITS = ['apple', 'banana', 'cherry', 'blueberry', 'raspberry', 'berry', 'strawberry', 'pineapple', 'plum', 'grapes', 'lychee', 'passion fruit', 'blackberry', 'orange', 'lime', 'lemon', 'citrus', 'grapefruit', 'coconut', 'watermelon', 'peach', 'pear', 'pumpkin', 'currant', 'nectarine', 'gooseberry', 'boysenberry', 'huckleberry', 'kiwi', 'fig', 'mango', 'apricot', 'tangerine', 'clementine', 'date', 'guava', 'papaya', 'persimmon', 'pomegranate', 'melon', 'cantaloupe', 'honeydew', 'dragonfruit', 'starfruit']
-VEGETABLES = ['broccoli', 'onion', 'shallot', 'leek', 'fennel', 'green bean', 'bell pepper', 'spinach', 'cabbage', 'asparagus', 'greens', 'pea', 'green pea', 'tomato', 'potato', 'sweet potato', 'carrot', 'celery', 'mushroom', 'cucumber', 'pickles', 'vegetable']
+VEGETABLES = ['broccoli', 'onion', 'shallot', 'leek', 'fennel', 'green bean', 'bell pepper', 'spinach', 'cabbage', 'asparagus', 'greens', 'pea', 'green pea', 'tomato', 'potato', 'sweet potato', 'carrot', 'celery', 'mushroom', 'cucumber', 'pickles', 'tomatoes', 'vegetable']
 GRAINS = ['rice', 'quinoa', 'maize', 'cornmeal', 'barley', 'wheat', 'oat', 'buckwheat', 'bulgur', 'millet', 'rye', 'amaranth']
 SEEDS = ['sunflower seeds', 'flaxseeds', 'poppy seeds', 'pumpkin seeds', 'caraway seeds', 'chia seeds', 'sesame seeds', 'nigella seeds']
 NUTS = ['almond', 'peanut', 'peanut butter', 'walnut', 'pecans', 'black walnut', 'chestnuts', 'cashews', 'hazelnuts', 'pistachios', 'brazil nuts', 'macadamia nuts', 'pine nuts', 'baru nuts', 'acorns', 'hickory nuts', 'pili nuts', 'sacha inchi', 'tiger nuts']
 FLOURS = ['flour', 'wheat flour', 'pastry flour', 'cake flour', 'bread flour', 'gluten-free flour', 'gluten free flour', 'sprouted flour', 'rice flour', 'soy flour', 'noodle flour', 'corn flour', 'chestnut flower']
 CARBOHYDRATES = ['noodles', 'noodle', 'pasta', 'tortilla', 'tortillas', 'bread', 'breads', 'bread crumbs', 'loaves', 'loaf', 'macaroni', 'spaghetti', 'farfalle', 'angel hair', 'rotini', 'penne', 'lasagna', 'cannelloni', 'elbow macaroni', 'gnocchi', 'bow-tie', 'ravioli', 'tortellini', 'soba noodles', 'udon noodles']
 BEANS = ['black beans', 'cannellini beans', 'kidney beans', 'garbanzo beans', 'navy beans', 'great northern beans', 'pinto beans', 'lima beans', 'fava beans', 'mung beans', 'red beans', 'soybeans', 'flageolet beans', 'black-eyed peas', 'lentils', 'chickpeas']
-DAIRY = ['milk', 'yogurt', 'cheese', 'butter', 'margarine', 'cream', 'heavy cream', 'sour cream', 'whipped cream', 'egg', 'eggs', 'ice cream']
+DAIRY = ['milk', 'yogurt', 'cheese', 'butter', 'margarine', 'cream', 'heavy cream', 'sour cream', 'whipped cream', 'egg', 'eggs', 'ice cream', 'mozzarella', 'parmesan', 'cheddar', 'swiss', 'gouda', 'manchego', 'monterey jack', 'feta', 'cotija']
 OILS = ['olive oil', 'vegetable oil', 'coconut oil', 'sesame oil', 'canola oil', 'cooking oil', 'amaranth oil', 'oil']
 HERBS = ['basil', 'bay leaf', 'cilantro', 'chives', 'dill', 'lemongrass', 'lemon grass', 'lavender', 'marjoram', 'mint', 'rosemary', 'sage', 'oregano', 'parsley', 'thyme', 'tarragon', 'savory', 'rose']
 SPICES = ['salt', 'black pepper', 'anise', 'caraway', 'cardamom', 'celery seed', 'chile', 'chili powder', 'cayenne', 'poppy seed', 'cinnamon', 'cloves', 'coriander', 'cumin', 'dill seed', 'fenugreek', 'ginger', 'ginger root', 'juniper berries', 'mace', 'nigella', 'nutmeg', 'peppercorns', 'saffron', 'star anise', 'sumac', 'turmeric', 'cajun', 'cajun blackened', 'shichimi', 'togarashi', 'ginger', 'sesame seed', 'curry powder', 'masala', 'five spice', 'jerk', 'baharat', 'zhug','paprika', 'chicken bouillon', 'beef bouillon', 'seasoning', 'garlic']
@@ -80,8 +82,8 @@ SWEETS = ['chocolate', 'cocoa', 'chocolate sauce', 'blueberry syrup', 'fruit car
 EXTRACTS = ['vanilla extract', 'orange extract', 'coffee extract', 'lemon extract', 'almond extract', 'peppermint extract', 'cherry extract', 'butter extract', 'maple extract', 'coconut extract', 'banana extract', 'rum extract']
 SUGARS = ['powdered sugar', 'white sugar', 'sugar', 'brown sugar', 'confectioners sugar', 'coconut sugar', 'brown rice sugar', 'honey', 'agave', 'cane sugar', 'coarse sugar', 'pearl sugar', 'turbinado', 'muscovado sugar']
 CONDIMENTS = ['ketchup', 'mustard', 'mayo', 'mayonnaise', 'vinegar']
-SAUCES = ['enchilada sauce', 'chimichurri', 'tahini sauce', 'tahini', 'pesto', 'peanut sauce', 'roasted red pepper sauce', 'soy sauce', 'barbecue sauce', 'hot sauce', 'tomato sauce', 'romesco sauce', 'cashew sauce', 'teriyaki sauce', 'nuoc cham', 'charmoula', 'yangnyeom sauce', 'buffalo sauce', 'salsa', 'roja salsa', 'salsa roja', 'tomatillo salsa', 'salsa tomatillo', 'avocado salsa', 'tartar sauce', 'marinara', 'alfredo', 'alfredo sauce', 'romesco', 'hollandaise', 'vinaigrette', 'coulis', 'cheese sauce', 'duck sauce', 'salad dressing', 'gravy', 'mushroom gravy', 'worcestershire sauce', 'aioli', 'garlic sauce', 'remoulade', 'fish sauce', 'garum', 'bagna cáuda', 'sriracha sauce', 'tabasco sauce', 'tabasco', 'bolognese', 'carbonara', 'ragú', 'picadillo', 'pico de gallo', 'salsa verde', 'tkemali', 'tkemali sauce', 'cranberry sauce', 'mango sauce', 'peace sauce', 'plum sauce', 'mushroom sauce', 'ygourt sauce', 'tziki', 'tziki sauce', 'strawberry sauce', 'harissa', 'oyster sauce', 'mirin', 'wine sauce', 'sweet bean sauce', 'sauce', 'green goddess dressing', 'italian dressing', 'ranch dressing', 'caesar dressing' ,'balsamic vinaigrette', 'thousand island dressing', 'ginger sauce', 'beef broth', 'chicken broth']
-MISC = ['gelatin', 'xantham gum', 'water']
+SAUCES = ['enchilada sauce', 'chimichurri', 'tahini sauce', 'tahini', 'pesto', 'peanut sauce', 'roasted red pepper sauce', 'soy sauce', 'barbecue sauce', 'hot sauce', 'tomato sauce', 'romesco sauce', 'cashew sauce', 'teriyaki sauce', 'nuoc cham', 'charmoula', 'yangnyeom sauce', 'buffalo sauce', 'salsa', 'roja salsa', 'salsa roja', 'tomatillo salsa', 'salsa tomatillo', 'avocado salsa', 'tartar sauce', 'marinara', 'alfredo', 'alfredo sauce', 'romesco', 'hollandaise', 'vinaigrette', 'coulis', 'cheese sauce', 'duck sauce', 'salad dressing', 'gravy', 'mushroom gravy', 'worcestershire sauce', 'aioli', 'garlic sauce', 'remoulade', 'fish sauce', 'garum', 'bagna cáuda', 'sriracha sauce', 'tabasco sauce', 'tabasco', 'bolognese', 'carbonara', 'ragú', 'picadillo', 'pico de gallo', 'salsa verde', 'tkemali', 'tkemali sauce', 'cranberry sauce', 'mango sauce', 'peace sauce', 'plum sauce', 'mushroom sauce', 'ygourt sauce', 'tziki', 'tziki sauce', 'strawberry sauce', 'harissa', 'oyster sauce', 'mirin', 'wine sauce', 'sweet bean sauce', 'sauce', 'green goddess dressing', 'italian dressing', 'ranch dressing', 'caesar dressing' ,'balsamic vinaigrette', 'thousand island dressing', 'ginger sauce', 'beef broth', 'chicken broth', 'pizza sauce', 'vegetable broth']
+MISC = ['gelatin', 'xantham gum', 'water', 'yeast', 'lard', 'beef tallow', 'vegetable shortening']
 # Mass Corpus of all ingredients
 ALL_INGREDIENTS = MEATS + GAME_MEATS + FISH + SHELLFISH + FRUITS + VEGETABLES + GRAINS + SEEDS + NUTS + FLOURS + CARBOHYDRATES + BEANS + DAIRY + OILS + HERBS + SPICES + SWEETS + EXTRACTS + SUGARS + CONDIMENTS + SAUCES + MISC
 # Unit Of Measurements
@@ -98,7 +100,8 @@ UNITS = [
     "pinch", 
     "dash", 
     "cube",
-    "pound"
+    "pound",
+    "can"
 ]
 
 # Time Words
@@ -135,7 +138,7 @@ ACTIONS = ['mix', 'whisk', 'stir', 'toss', 'bake', 'shake', 'preheat', 'heat', '
 ACTIONS = ACTIONS + list(ACTION_TO_TOOL.values())
 
 # Descriptor Words
-INGREDIENT_DESCRIPTOR = ['fresh', 'good', 'heirloom', 'virgin', 'extra virgin', 'ripe', 'organic', 'seedless', 'chopped', 'minced', 'uncooked', 'grated', 'frozen', 'mixed', 'baby', 'sliced', 'cubed', 'small', 'large', 'shredded', 'ground', 'finely', 'salted', 'unsalted', 'diced', 'sharp']
+INGREDIENT_DESCRIPTOR = ['fresh', 'good', 'heirloom', 'virgin', 'extra virgin', 'ripe', 'organic', 'seedless', 'chopped', 'minced', 'crumbled', 'uncooked', 'grated', 'frozen', 'mixed', 'baby', 'sliced', 'cubed', 'small', 'large', 'shredded', 'ground', 'finely', 'salted', 'unsalted', 'diced', 'sharp', 'active', 'dry', 'fine', 'coarse', 'thinly', 'low-moisure', 'crushed', 'plain', 'divided', 'warm', 'hot', 'cold', 'parmesan', 'romano', 'mozarella', 'cheddar', 'swiss', 'elbow', 'gouda', 'manchego', 'monterey jack', 'feta', 'cotija', 'strip', 'flank', 'skirt', 'short', 'porterhouse', 'ribeye', 'clarified', "butcher's", 'sweet', 'chinese', 'japanese', 'greek', 'italian', 'mexican', 'southern', 'northern', 'sichuan']
 # Stop Words for Ingredient parsing
 INGREDIENT_STOP_WORDS = ['ground', 'black']
 
@@ -154,8 +157,13 @@ HEALTHY_TO_UNHEALTHY = {'beef': 'turkey', 'fry': 'bake', 'bacon': 'turkey bacon'
 ALL_CUISINE = ['milk', 'butter', 'salt', 'black pepper', 'eggs', 'sugar', 'flour', 'all-purpose flour']
 JAPANESE = ['soy sauce', 'tuna', 'ahi tuna', 'rice', 'tamago', 'daikon', 'tempura chicken', 'tempura', 'salmon', 'octopus', 'squid', 'natto', 'sesame oil', 'sesame seeds', 'sake', 'mirin', 'rice vinegar', 'miso', 'dashi', 'tonkatsu sauce', 'soba noodles', 'udon noodles', 'ramen noodles', 'panko breadcrumbs', 'corn starch', 'togarashi', 'nori', 'ginger', 'scallion', 'tofu', 'shiitake mushroom', 'shimeji mushroom', 'ume', 'shiso', 'teriyaki sauce', 'eggs', 'wasabi', 'red bean paste', 'matcha', 'mochi', 'beef']
 ITALIAN = {'pasta': 'carb', 'tomato': 'vegetable', 'basil': 'herb', 'oregano': 'herb', 'garlic': 'spice', 'olive oil': 'oil', 'balsamic vinegar': 'sauce', 'caper': 'vegetable', 'veal':'meat', 'beef':'meat', 'chicken':'meat', 'pork':'meat', 'prosciutto':'meat', 'bolognese sauce':'sauce', 'pomodoro sauce':'sauce', 'pesto':'sauce', 'pancetta':'meat', 'porcini mushrooms':'vegetable', 'romano cheese':'cheese', 'mozzarella cheese':'cheese', 'parmigiano cheese':'cheese', 'parmigiano-reggiano':'cheese', 'wine':'sauce', 'polenta':'carb', 'swordfish':'fish', 'artichokes':'vegetable', 'risotto':'carb', 'ricotta cheese':'cheese', 'zucchini':'vegetbale', 'eggplants':'vegetable', 'onion':'vegetable', 'peppers':'vegetable', 'penne pasta':'pasta', 'spaghetti':'pasta', 'linguine':'pasta', 'fusili':'pasta', 'lasgane':'pasta', 'rigatoni':'pasta', 'gnocchi':'carb', 'ravioli':'pasta', 'tortellini':'pasta', 'pizza':'carb', 'fontina':'cheese', 'salami':'meat', 'panna cotta':'sweet', 'tiramisu':'sweet', 'pistachio':'nut', 'cannoli':'sweet', 'thyme':'herb', 'rosemary':'herb', 'red pepper flake':'spice', 'sage':'herb', 'lemon':'fruit', 'pine nuts':'nut', 'anchovies':'fish', 'sardines':'fish', 'bread crumbs':'carb', 'bay leaf':'herb', 'capicola':'meat', 'burrata':'cheese', 'parmesan cheese': 'cheese', 'macaroni': 'pasta', 'elbow macaroni': 'pasta'}
-VEGETARIAN = {}
-
+VEGETARIAN = {
+    "meat_subs" : ['tofu', 'soy protein', 'tempeh', 'seitan', 'spelt'],
+    "meat_sauce_subs" : ['marinara', 'alfredo', 'romesco', 'arrabbiata'],
+    "meat_fat_subs" : ['vegetable shortening', 'coconut oil'],
+    "meat_broth_subs" : ['vegetable broth'],
+    "meat_sauces": ['bolognese', 'carbonara', 'chili', 'curry', 'ragu', 'sausage gravy', 'jajang']
+}
 
 
 # Parsing Functions
@@ -210,25 +218,37 @@ def parseIngredient(ingr: str) -> str:
                             break 
                 else: 
                     # Set as ingredient, break
-                    ingredient = max(pos_ingr, ingredient)
-        
+                    if len(pos_ingr) > len(ingredient):
+                        ingredient = pos_ingr
+    
+    # Remove commas
+    ingr = ingr.replace(",", "")
     # Split List into Tokens
     words = ingr.split()
+    # Remove matched ingredient from tokens
+    ingredient_split = ingredient.split()
+    for ingr_part in ingredient_split:
+        if ingr_part in words:
+            words.remove(ingr_part)
+
     for (i, w) in enumerate(words):
         word = w.lower()
+        # Check if number
         if w.isnumeric():
             n = unicodedata.numeric(w) if len(w) == 1 else float(w)
             quant = quant + n if quant else n
+        # Check unit
         elif (word in UNITS) or (word[-1] == "s" and word[:-1] in UNITS) or (word[-2] == "es" and word[:-2] in UNITS):
             unit = word
-            #rest = " ".join(words[i + 1:])
-            #break
         # Check for descriptors
         elif word in INGREDIENT_DESCRIPTOR:
             descriptor_list.append(word)
+        # Otherwise, extra info
         else:
-            rest = " ".join(words[i:])
-            break
+            if rest == None:
+                rest = word
+            else:
+                rest = rest + " " + word
     return quant, unit, descriptor_list, ingredient, rest
 
 def parseInstructions(instructions: str, ingredients: list) -> dict:
@@ -305,23 +325,10 @@ def parseInstruction(instr: str, ingredients: list) -> dict:
     # Return Dict
     return instr_dict
 
-def parseTools(txt: str) -> list:
-    recipe_tools = []
-    words = txt.split()
-    for tool in TOOLS:
-        if tool not in recipe_tools:
-            if tool in txt:
-                recipe_tools.append(tool)
-    for word in words:
-        if word in ACTION_TO_TOOL:
-            recipe_tools.append(ACTION_TO_TOOL[word])
-    return recipe_tools
-
 ###### SCRAPER ######
 def clean_text(txt: str) -> str:
     """Replace all white space with single space."""
     return " ".join(txt.strip().split())
-
 
 def scrape(url: str) -> 'tuple[list[str], list[str]]':
     page = requests.get(url)
@@ -454,7 +461,8 @@ def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str)
                 if len(ingr_part) > 0:
                     ingr_phrase_add = " ".join([str(subpart) for subpart in ingr_part])
             else:
-                ingr_phrase_add = str(ingr_part)
+                if ingr_part != None:
+                    ingr_phrase_add = str(ingr_part)
             if transformation == "italian":
                 if ingr_phrase_add and ingr_phrase_add.lower() not in ITALIAN and ingr_phrase_add.lower() not in ALL_CUISINE:
                     item = ingr_phrase_add.lower()
@@ -492,10 +500,29 @@ def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str)
             
             # Vegetarian transform
             if transformation == "vegetarian":
-                pass 
+                # Check if current ingr has any Meats
+                if ingr_phrase_add in MEATS:
+                    print("This ain't vegetarian")
 
+                # Check if in Sauces
+                if ingr_phrase_add in SAUCES:
+                    # Check if in meat sauces
+                    print("This ain't vegetarian")
+
+                # Check if meat based fat
+                if ingr_phrase_add == 'lard':
+                    print("This ain't vegetarian")
+
+            # Un vegetarian transform
+            if transformation == "unvegetarian":
+                pass
+            
             # Healthy Transformation
             if transformation == "healthy":
+                pass
+
+            # Unhealthy Transformation
+            if transformation == "unhealthy":
                 pass
 
             ingr_phrase.append(ingr_phrase_add)
@@ -528,15 +555,6 @@ def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str)
         f.writelines("\n".join(lines))
 
 
-#'https://www.allrecipes.com/recipe/55151/ravioli-soup/'
-#'https://www.allrecipes.com/recipe/281710/pumpkin-ravioli-with-sage-brown-butter-sauce/'
-#'https://www.allrecipes.com/recipe/237335/spicy-sweet-pork-tenderloin/'
-
-#Test Alternative Scraper/Parser
-# scraper = scrape_me(url)
-# print(scraper.ingredients())
-# print(scraper.instructions())
-
 alt_print="""
 for ingr in ingredients:
     print(ingr)
@@ -564,9 +582,12 @@ def get_ingredients_from_ingrs_dict(ingr_dict):
 def main():
     transformation, out, url = sys.argv[1:4]
     if url == "test":
-        url = 'https://www.allrecipes.com/recipe/11679/homemade-mac-and-cheese/'
-            #'https://www.allrecipes.com/recipe/281710/pumpkin-ravioli-with-sage-brown-butter-sauce/'
-    
+        url = 'https://www.allrecipes.com/recipe/281710/pumpkin-ravioli-with-sage-brown-butter-sauce/'
+        #'https://www.allrecipes.com/recipe/11679/homemade-mac-and-cheese/' 
+        #'https://www.allrecipes.com/recipe/246553/bakery-style-pizza/'
+
+        #'https://www.allrecipes.com/recipe/55151/ravioli-soup/'
+        #'https://www.allrecipes.com/recipe/237335/spicy-sweet-pork-tenderloin/'   
     ingredients, instructions = scrape(url)
 
     # Parse Ingredients Test
