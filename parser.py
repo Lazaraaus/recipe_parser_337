@@ -3,6 +3,7 @@ import sys
 import unicodedata
 import re
 import random
+import json
 # from parse_ingredients import parse_ingredient
 # from recipe_scrapers import scrape_me
 
@@ -147,6 +148,7 @@ HEALTHY_TO_UNHEALTHY = {'beef': 'turkey', 'fry': 'bake', 'bacon': 'turkey bacon'
 ALL_CUISINE = ['milk', 'butter', 'salt', 'black pepper', 'eggs', 'sugar', 'flour', 'all-purpose flour']
 JAPANESE = ['soy sauce', 'tuna', 'ahi tuna', 'rice', 'tamago', 'daikon', 'tempura chicken', 'tempura', 'salmon', 'octopus', 'squid', 'natto', 'sesame oil', 'sesame seeds', 'sake', 'mirin', 'rice vinegar', 'miso', 'dashi', 'tonkatsu sauce', 'soba noodles', 'udon noodles', 'ramen noodles', 'panko breadcrumbs', 'corn starch', 'togarashi', 'nori', 'ginger', 'scallion', 'tofu', 'shiitake mushroom', 'shimeji mushroom', 'ume', 'shiso', 'teriyaki sauce', 'eggs', 'wasabi', 'red bean paste', 'matcha', 'mochi', 'beef']
 ITALIAN = {'pasta': 'carb', 'tomato': 'vegetable', 'basil': 'herb', 'oregano': 'herb', 'garlic': 'spice', 'olive oil': 'oil', 'balsamic vinegar': 'sauce', 'caper': 'vegetable', 'veal':'meat', 'beef':'meat', 'chicken':'meat', 'pork':'meat', 'prosciutto':'meat', 'bolognese sauce':'sauce', 'pomodoro sauce':'sauce', 'pesto':'sauce', 'pancetta':'meat', 'porcini mushrooms':'vegetable', 'romano cheese':'cheese', 'mozzarella cheese':'cheese', 'parmigiano cheese':'cheese', 'parmigiano-reggiano':'cheese', 'wine':'sauce', 'polenta':'carb', 'swordfish':'fish', 'artichokes':'vegetable', 'risotto':'carb', 'ricotta cheese':'cheese', 'zucchini':'vegetbale', 'eggplants':'vegetable', 'onion':'vegetable', 'peppers':'vegetable', 'penne pasta':'pasta', 'spaghetti':'pasta', 'linguine':'pasta', 'fusili':'pasta', 'lasgane':'pasta', 'rigatoni':'pasta', 'gnocchi':'carb', 'ravioli':'pasta', 'tortellini':'pasta', 'pizza':'carb', 'fontina':'cheese', 'salami':'meat', 'panna cotta':'sweet', 'tiramisu':'sweet', 'pistachio':'nut', 'cannoli':'sweet', 'thyme':'herb', 'rosemary':'herb', 'red pepper flake':'spice', 'sage':'herb', 'lemon':'fruit', 'pine nuts':'nut', 'anchovies':'fish', 'sardines':'fish', 'bread crumbs':'carb', 'bay leaf':'herb', 'capicola':'meat', 'burrata':'cheese', 'parmesan cheese': 'cheese', 'macaroni': 'pasta', 'elbow macaroni': 'pasta'}
+VEGETARIAN = {}
 
 
 
@@ -256,11 +258,19 @@ def parseInstruction(instr: str, ingredients: list) -> dict:
             # append v and instr[i - 1] -> '10 minutes'
             instr_dict['time'].append(toks[i - 1].lower() + ' ' + word)
             instr_dict['tokens'].append('time')
+            # remove time prefix from tokens
+            instr_dict['tokens'].remove(toks[i - 1])
         # Check for Tools
         elif word in SUFFIXES:
             if toks[i - 1] in PREFIXES or toks[i - 1] in ALL_INGREDIENTS:
                 # append prefix + suffix
                 instr_dict['tools'].append(toks[i - 1].lower() + ' ' + word)
+                instr_dict['tokens'].append('tool')
+                # remove prefix from tokens
+                instr_dict['tokens'].remove(toks[i - 1])
+            elif word in SIMPLE_TOOLS:
+                # Simple Tool
+                instr_dict['tools'].append(word)
                 instr_dict['tokens'].append('tool')
         elif word in SIMPLE_TOOLS:
             instr_dict['tools'].append(word)
@@ -270,9 +280,9 @@ def parseInstruction(instr: str, ingredients: list) -> dict:
             instr_dict['action'].append(word)
             instr_dict['tokens'].append('action')
             # Check if action maps to tool
-            if word in ACTION_TO_TOOL.keys():
-                instr_dict['tools'].append(ACTION_TO_TOOL[word])
-                instr_dict['tokens'].append('tool')
+            # if word in ACTION_TO_TOOL.keys():
+            #     instr_dict['tools'].append(ACTION_TO_TOOL[word])
+            #     instr_dict['tokens'].append('tool')
         # Check for ingredients
         elif word in ingredients:
             instr_dict['ingredients'].append(word)
@@ -297,12 +307,6 @@ def parseTools(txt: str) -> list:
             recipe_tools.append(ACTION_TO_TOOL[word])
     return recipe_tools
 
-##Alternative Ingredient Parser
-
-#def parseIngredient(string: str):
-#    result = parse_ingredient(string)
-#    return result
-
 ###### SCRAPER ######
 def clean_text(txt: str) -> str:
     """Replace all white space with single space."""
@@ -323,6 +327,7 @@ def scrape(url: str) -> 'tuple[list[str], list[str]]':
     
     return ingredients, instructions
 
+# Fraction Conv Function
 def float_to_frac(n: float):
     num = int(n // 1)
     dec = round(n % 1, 3)
@@ -364,7 +369,7 @@ def float_to_frac(n: float):
         dec = "15/16"
     return dec if num == 0 else str(num) + dec if isinstance(dec, str) else str(num + dec)
 
-
+# Conversion Dict
 CONVERSIONS = {
     "teaspoon": {
         "min": [],
@@ -474,6 +479,15 @@ def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str)
                         random_index = random.randrange(len(matched_items))
                         ingr_transform_dict[item] = matched_items[random_index]
                         ingr_phrase_add = matched_items[random_index]
+            
+            # Vegetarian transform
+            if transformation == "vegetarian":
+                pass 
+
+            # Healthy Transformation
+            if transformation == "healthy":
+                pass
+
             ingr_phrase.append(ingr_phrase_add)
         lines.append(" ".join([p for p in ingr_phrase if p is not None]))
     
