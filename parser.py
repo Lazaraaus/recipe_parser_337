@@ -47,6 +47,7 @@ from bs4 import BeautifulSoup
 # Fixed not handling punc properly in parseIngredient
 # Fixed issue w/ outputting None in ingredients
 # Fixed issue w/ outputting in wrong order
+# Removed unused code: ParseTools, scraper library
 # Added: Healthy Transform, Unhealthy Transform, Vegetarian Transform, Unveg Transform
 
 ###############
@@ -162,7 +163,7 @@ VEGETARIAN = {
     "meat_sauce_subs" : ['marinara', 'alfredo', 'romesco', 'arrabbiata'],
     "meat_fat_subs" : ['vegetable shortening', 'coconut oil'],
     "meat_broth_subs" : ['vegetable broth'],
-    "meat_sauces": ['bolognese', 'carbonara', 'chili', 'curry', 'ragu', 'sausage gravy', 'jajang']
+    "meat_sauces": ['bolognese', 'carbonara', 'chili', 'curry', 'ragu', 'sausage gravy', 'jajang', 'meat sauce']
 }
 
 
@@ -502,15 +503,33 @@ def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str)
             if transformation == "vegetarian":
                 # Check if current ingr has any Meats
                 if ingr_phrase_add in MEATS:
+                    # Check if ground beef, ground turkey, etc
+                    if 'ground' in ingr_phrase_add:
+                        # If so, use tempeh
+                        ingr_phrase_add = VEGETARIAN['meat_subs'][2]
+                    else:
+                        # Otherwise can use any meat sub
+                        random_index = random.randrange(len(VEGETARIAN['meat_subs']))
+                        ingr_phrase_add = VEGETARIAN["meat_subs"][random_index]
                     print("This ain't vegetarian")
 
                 # Check if in Sauces
                 if ingr_phrase_add in SAUCES:
                     # Check if in meat sauces
+                    if ingr_phrase_add in VEGETARIAN['meat_sauces']:
+                        # If so, use any non meat sauce
+                        random_index = random.randrange(len(VEGETARIAN['meat_sauce_subs']))
+                        ingr_phrase_add = VEGETARIAN['meat_sauce_subs'][random_index]
+
+                    # Check if meat broth
+                    elif ingr_phrase_add == "beef broth" or ingr_phrase_add == "chicken broth":
+                        # If so use veggie broth
+                        ingr_phrase_add = VEGETARIAN["meat_broth_subs"][0]
                     print("This ain't vegetarian")
 
                 # Check if meat based fat
                 if ingr_phrase_add == 'lard':
+                    # If so, sub vegetable shortening
                     print("This ain't vegetarian")
 
             # Un vegetarian transform
