@@ -2,6 +2,7 @@ import requests
 import sys
 import unicodedata
 import re
+import random
 # from parse_ingredients import parse_ingredient
 # from recipe_scrapers import scrape_me
 
@@ -143,8 +144,9 @@ HEALTHY_TO_UNHEALTHY = {'beef': 'turkey', 'fry': 'bake', 'bacon': 'turkey bacon'
 
 #Ingredients indicative of a cuisine 
 #Tempura as a frying technique
+ALL_CUISINE = ['milk', 'butter', 'salt', 'black pepper', 'eggs', 'sugar', 'flour', 'all-purpose flour']
 JAPANESE = ['soy sauce', 'tuna', 'ahi tuna', 'rice', 'tamago', 'daikon', 'tempura chicken', 'tempura', 'salmon', 'octopus', 'squid', 'natto', 'sesame oil', 'sesame seeds', 'sake', 'mirin', 'rice vinegar', 'miso', 'dashi', 'tonkatsu sauce', 'soba noodles', 'udon noodles', 'ramen noodles', 'panko breadcrumbs', 'corn starch', 'togarashi', 'nori', 'ginger', 'scallion', 'tofu', 'shiitake mushroom', 'shimeji mushroom', 'ume', 'shiso', 'teriyaki sauce', 'eggs', 'wasabi', 'red bean paste', 'matcha', 'mochi', 'beef']
-ITALIAN = ['pasta', 'tomato', 'basil', 'oregano', 'garlic', 'cheese', 'olive oil', 'balsamic vinegar', 'caper', 'veal', 'beef', 'chicken', 'pork', 'prosciutto', 'bolognese sauce', 'pomodoro sauce', 'pesto', 'pancetta', 'porcini mushrooms', 'romano cheese', 'mozzarella cheese', 'parmigiano cheese', 'parmigiano-reggiano', 'wine', 'polenta', 'swordfish', 'artichokes', 'risotto', 'ricotta cheese', 'zucchini', 'eggplants', 'onion', 'peppers', 'penne pasta', 'spaghetti', 'linguine', 'fusili', 'lasgane', 'rigatoni', 'gnocchi', 'ravioli', 'tortellini', 'pizza', 'fontina', 'salami', 'panna cotta', 'tiramisu', 'pistachio', 'cannoli', 'thyme', 'rosemary', 'red pepper flake', 'sage', 'lemon', 'pine nuts', 'anchovies', 'sardines', 'bread crumbs', 'bay leaf', 'capicola', 'burrata']
+ITALIAN = {'pasta': 'carb', 'tomato': 'vegetable', 'basil': 'herb', 'oregano': 'herb', 'garlic': 'spice', 'olive oil': 'oil', 'balsamic vinegar': 'sauce', 'caper': 'vegetable', 'veal':'meat', 'beef':'meat', 'chicken':'meat', 'pork':'meat', 'prosciutto':'meat', 'bolognese sauce':'sauce', 'pomodoro sauce':'sauce', 'pesto':'sauce', 'pancetta':'meat', 'porcini mushrooms':'vegetable', 'romano cheese':'cheese', 'mozzarella cheese':'cheese', 'parmigiano cheese':'cheese', 'parmigiano-reggiano':'cheese', 'wine':'sauce', 'polenta':'carb', 'swordfish':'fish', 'artichokes':'vegetable', 'risotto':'carb', 'ricotta cheese':'cheese', 'zucchini':'vegetbale', 'eggplants':'vegetable', 'onion':'vegetable', 'peppers':'vegetable', 'penne pasta':'pasta', 'spaghetti':'pasta', 'linguine':'pasta', 'fusili':'pasta', 'lasgane':'pasta', 'rigatoni':'pasta', 'gnocchi':'carb', 'ravioli':'pasta', 'tortellini':'pasta', 'pizza':'carb', 'fontina':'cheese', 'salami':'meat', 'panna cotta':'sweet', 'tiramisu':'sweet', 'pistachio':'nut', 'cannoli':'sweet', 'thyme':'herb', 'rosemary':'herb', 'red pepper flake':'spice', 'sage':'herb', 'lemon':'fruit', 'pine nuts':'nut', 'anchovies':'fish', 'sardines':'fish', 'bread crumbs':'carb', 'bay leaf':'herb', 'capicola':'meat', 'burrata':'cheese', 'parmesan cheese': 'cheese', 'macaroni': 'pasta', 'elbow macaroni': 'pasta'}
 
 
 
@@ -330,12 +332,47 @@ def scrape(url: str) -> 'tuple[list[str], list[str]]':
 def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str):
     """`transformation` can be "none", "halved", "doubled". Will eventually be able to be substitutions. """
     lines = ["Ingredients", ""]
+    ingr_transform_dict = {}
     for ingr_lst in list(ingr_dict.values()):
         ingr_phrase = ["\t-"]
         if transformation == "halved":
             ingr_phrase.append(str(ingr_lst[0] / 2))
         elif transformation == "doubled":
             ingr_phrase.append(str(ingr_lst[0] * 2))
+        elif transformation == "italian":
+            if ingr_lst[3].lower() not in ITALIAN and ingr_lst[3].lower() not in ALL_CUISINE:
+                item = ingr_lst[3].lower()
+                category = ""
+                if "pasta" in item:
+                    category = "pasta"
+                elif "cheese" in item:
+                    category = "cheese"
+                elif item in CARBOHYDRATES:
+                    category = "carb"
+                elif item in VEGETABLES:
+                    category = "vegetable"
+                elif item in SPICES:
+                    category = "spice"
+                elif item in OILS:
+                    category = "oil"
+                elif item in HERBS:
+                    category = "herb"
+                elif item in SAUCES:
+                    category = "sauce"
+                elif item in MEATS:
+                    category = "meat"
+                elif item in FISH:
+                    category = "fish"
+                elif item in NUTS:
+                    category = "nut"
+                if category != "":
+                    matched_items = []
+                    for key, value in ITALIAN.items():
+                        if category == value:
+                            matched_items.append(key)
+                    random_index = random.randrange(len(matched_items))
+                    ingr_transform_dict[item] = matched_items[random_index]
+                    ingr_lst[3] = matched_items[random_index]
         for ingr_part in ingr_lst[(1 if transformation in ["halved", "doubled"] else 0):]:
             if isinstance(ingr_part, list):
                 if len(ingr_part) > 0:
@@ -351,7 +388,11 @@ def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str)
         i_ingr, i_tool, i_act, i_time = 0, 0, 0, 0
         for word in instr_dict[i]["tokens"]:
             if word == "ingredient":
-                instr_phrase.append(ingredients[i_ingr])
+                if ingredients[i_ingr] in ingr_transform_dict:
+                    instr_phrase.append(
+                        ingr_transform_dict[ingredients[i_ingr]])
+                else:
+                    instr_phrase.append(ingredients[i_ingr])
                 i_ingr += 1
             elif word == "tool":
                 instr_phrase.append(tools[i_tool])
@@ -384,7 +425,7 @@ def main():
     ingr_dict_keys = ingr_dict.keys() 
     instr_dict = parseInstructions(instructions, list(ingr_dict_keys))
 
-    write_out(ingr_dict, instr_dict, "doubled", "out.txt")
+    write_out(ingr_dict, instr_dict, "italian", "out.txt")
 
     cmd_output = """
     for ingr in ingredients:
