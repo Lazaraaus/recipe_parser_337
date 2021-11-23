@@ -207,7 +207,7 @@ def parseIngredient(ingr: str) -> str:
         if w.isnumeric():
             n = unicodedata.numeric(w) if len(w) == 1 else float(w)
             quant = quant + n if quant else n
-        elif word in UNITS or (word[-1] == "s" and word[:-1] in UNITS):
+        elif (word in UNITS) or (word[-1] == "s" and word[:-1] in UNITS) or (word[-2] == "es" and word[:-2] in UNITS):
             unit = word
             #rest = " ".join(words[i + 1:])
             #break
@@ -303,7 +303,6 @@ def parseTools(txt: str) -> list:
 #    result = parse_ingredient(string)
 #    return result
 
-
 ###### SCRAPER ######
 def clean_text(txt: str) -> str:
     """Replace all white space with single space."""
@@ -324,62 +323,159 @@ def scrape(url: str) -> 'tuple[list[str], list[str]]':
     
     return ingredients, instructions
 
+def float_to_frac(n: float):
+    num = int(n // 1)
+    dec = round(n % 1, 3)
+    if dec == 0.000:
+        dec = ""
+    elif dec == 0.062:
+        dec = "1/16"
+    elif dec == 0.125:
+        dec = "\u215b"
+    elif dec == 0.188:
+        dec = "3/16"
+    elif dec == 0.2500:
+        dec = "\u00bc"
+    elif dec == 0.312:
+        dec = "5/16"
+    elif dec == 0.333:
+        dec = "\u2153"
+    elif dec == 0.375:
+        dec = "\u215c"
+    elif dec == 0.438:
+        dec = "7/16"
+    elif dec == 0.500:
+        dec = "\u00bd"
+    elif dec == 0.562:
+        dec = "9/16"
+    elif dec == 0.625:
+        dec = "\u215d"
+    elif dec == 0.667:
+        dec = "\u2154"
+    elif dec == 0.688:
+        dec = "11/16"
+    elif dec == 0.750:
+        dec = "\u00be"
+    elif dec == 0.812:
+        dec = "13/16"
+    elif dec == 0.875:
+        dec = "\u215e"
+    elif dec == 0.938:
+        dec = "15/16"
+    return dec if num == 0 else str(num) + dec if isinstance(dec, str) else str(num + dec)
+
+
+CONVERSIONS = {
+    "teaspoon": {
+        "min": [],
+        "max": [2.9999, "tablespoon", 0.3333]
+    },
+    "tablespoon": {
+        "min": [0.3334, "teaspoon", 3],
+        "max": [3.9999, "cup", 0.0625]
+    },
+    "cup": {
+        "min": [0.2409, "tablespoon", 16],
+        "max": [3.9999, "quart", 0.25]
+    },
+    "pint": {
+        "min": [0.9999, "cup", 2],
+        "max": [1.0001, "quart", 0.5]
+    },
+    "quart": {
+        "min": [0.9999, "cup", 4],
+        "max": [1.0001, "gallon", 0.25]
+    },
+    "gallon": {
+        "min": [0.2501, "quart", 4],
+        "max": []
+    },
+    "ounce": {
+        "min": [],
+        "max": [15.9999, "pound", 0.0625]
+    },
+    "pound": {
+        "min": [0.9999, "ounce", 16],
+        "max": []
+    }
+}
+
 # Macey 11/21
 # Humpty Dumpty the instructions back together again
 # Added halving/doubling transformation in this `write_out` function
 # Things to fix: "30 30 minutes" for the mac and cheese recipe (saving time inconsistently)
 # Things to fix: changing units when going out of range
 def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str):
-    """`transformation` can be "none", "halved", "doubled". Will eventually be able to be substitutions. """
     lines = ["Ingredients", ""]
     ingr_transform_dict = {}
     for ingr_lst in list(ingr_dict.values()):
         ingr_phrase = ["\t-"]
-        if transformation == "halved":
-            ingr_phrase.append(str(ingr_lst[0] / 2))
-        elif transformation == "doubled":
-            ingr_phrase.append(str(ingr_lst[0] * 2))
-        elif transformation == "italian":
-            if ingr_lst[3].lower() not in ITALIAN and ingr_lst[3].lower() not in ALL_CUISINE:
-                item = ingr_lst[3].lower()
-                category = ""
-                if "pasta" in item:
-                    category = "pasta"
-                elif "cheese" in item:
-                    category = "cheese"
-                elif item in CARBOHYDRATES:
-                    category = "carb"
-                elif item in VEGETABLES:
-                    category = "vegetable"
-                elif item in SPICES:
-                    category = "spice"
-                elif item in OILS:
-                    category = "oil"
-                elif item in HERBS:
-                    category = "herb"
-                elif item in SAUCES:
-                    category = "sauce"
-                elif item in MEATS:
-                    category = "meat"
-                elif item in FISH:
-                    category = "fish"
-                elif item in NUTS:
-                    category = "nut"
-                if category != "":
-                    matched_items = []
-                    for key, value in ITALIAN.items():
-                        if category == value:
-                            matched_items.append(key)
-                    random_index = random.randrange(len(matched_items))
-                    ingr_transform_dict[item] = matched_items[random_index]
-                    ingr_lst[3] = matched_items[random_index]
-        for ingr_part in ingr_lst[(1 if transformation in ["halved", "doubled"] else 0):]:
+        quant, unit = ingr_lst[:2]
+        if quant and (transformation == "halved" or transformation == "doubled"):
+            if transformation == "halved":
+                quant /= 2
+            elif transformation == "doubled":
+                quant *= 2
+            if unit and ((unit in CONVERSIONS) or (unit[-1] == "s" and unit[:-1] in CONVERSIONS) or (unit[-2] == "es" and unit[:-2] in CONVERSIONS)):
+                if unit[-2] == "es":
+                    unit = unit[:-2]
+                elif unit[-1] == "s":
+                    unit = unit[:-1]
+                min_conv = CONVERSIONS[unit]["min"]
+                max_conv = CONVERSIONS[unit]["max"]
+                if min_conv and quant < min_conv[0]:
+                    unit = min_conv[1]
+                    quant *= min_conv[2]
+                elif max_conv and quant > max_conv[0]:
+                    unit = max_conv[1]
+                    quant *= max_conv[2]
+        if quant:
+            ingr_phrase.append(float_to_frac(quant))
+        if unit:
+            ingr_phrase.append(unit)
+        for ingr_part in ingr_lst[2:]:
+            ingr_phrase_add = None
             if isinstance(ingr_part, list):
                 if len(ingr_part) > 0:
-                    ingr_phrase.append(" ".join([str(subpart) for subpart in ingr_part]))
+                    ingr_phrase_add = " ".join([str(subpart) for subpart in ingr_part])
             else:
-                ingr_phrase.append(str(ingr_part))
-        lines.append(" ".join(ingr_phrase))
+                ingr_phrase_add = str(ingr_part)
+            if transformation == "italian":
+                if ingr_phrase_add and ingr_phrase_add.lower() not in ITALIAN and ingr_phrase_add.lower() not in ALL_CUISINE:
+                    item = ingr_phrase_add.lower()
+                    category = ""
+                    if "pasta" in item:
+                        category = "pasta"
+                    elif "cheese" in item:
+                        category = "cheese"
+                    elif item in CARBOHYDRATES:
+                        category = "carb"
+                    elif item in VEGETABLES:
+                        category = "vegetable"
+                    elif item in SPICES:
+                        category = "spice"
+                    elif item in OILS:
+                        category = "oil"
+                    elif item in HERBS:
+                        category = "herb"
+                    elif item in SAUCES:
+                        category = "sauce"
+                    elif item in MEATS:
+                        category = "meat"
+                    elif item in FISH:
+                        category = "fish"
+                    elif item in NUTS:
+                        category = "nut"
+                    if category != "":
+                        matched_items = []
+                        for key, value in ITALIAN.items():
+                            if category == value:
+                                matched_items.append(key)
+                        random_index = random.randrange(len(matched_items))
+                        ingr_transform_dict[item] = matched_items[random_index]
+                        ingr_phrase_add = matched_items[random_index]
+            ingr_phrase.append(ingr_phrase_add)
+        lines.append(" ".join([p for p in ingr_phrase if p is not None]))
     
     lines.extend(["", "", "Instructions", ""])
     for i in range(1, len(instr_dict) + 1):
@@ -388,11 +484,7 @@ def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str)
         i_ingr, i_tool, i_act, i_time = 0, 0, 0, 0
         for word in instr_dict[i]["tokens"]:
             if word == "ingredient":
-                if ingredients[i_ingr] in ingr_transform_dict:
-                    instr_phrase.append(
-                        ingr_transform_dict[ingredients[i_ingr]])
-                else:
-                    instr_phrase.append(ingredients[i_ingr])
+                instr_phrase.append(ingredients[i_ingr])
                 i_ingr += 1
             elif word == "tool":
                 instr_phrase.append(tools[i_tool])
@@ -412,12 +504,34 @@ def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str)
         f.writelines("\n".join(lines))
 
 
+#'https://www.allrecipes.com/recipe/55151/ravioli-soup/'
+#'https://www.allrecipes.com/recipe/281710/pumpkin-ravioli-with-sage-brown-butter-sauce/'
+#'https://www.allrecipes.com/recipe/237335/spicy-sweet-pork-tenderloin/'
+
+#Test Alternative Scraper/Parser
+# scraper = scrape_me(url)
+# print(scraper.ingredients())
+# print(scraper.instructions())
+
+alt_print="""
+for ingr in ingredients:
+    print(ingr)
+print()
+        #Steps - Add parsed ingredients, tools, methods etc.
+steps = 1
+for instr in instructions:
+    print("Step " + str(steps) + ":")
+    print(instr)
+    tools = parseTools(instr)
+    print("Tools: ", tools)
+    steps += 1
+"""
+
 def main():
-    url = 'https://www.allrecipes.com/recipe/11679/homemade-mac-and-cheese/'
-    #'https://www.allrecipes.com/recipe/55151/ravioli-soup/'
-    #'https://www.allrecipes.com/recipe/281710/pumpkin-ravioli-with-sage-brown-butter-sauce/'
+    transformation, out, url = sys.argv[1:4]
+    if url == "test":
+        url = 'https://www.allrecipes.com/recipe/281710/pumpkin-ravioli-with-sage-brown-butter-sauce/'
     
-    #'https://www.allrecipes.com/recipe/237335/spicy-sweet-pork-tenderloin/' #sys.argv[1]
     ingredients, instructions = scrape(url)
 
     # Parse Ingredients Test
@@ -425,29 +539,12 @@ def main():
     ingr_dict_keys = ingr_dict.keys() 
     instr_dict = parseInstructions(instructions, list(ingr_dict_keys))
 
-    write_out(ingr_dict, instr_dict, "italian", "out.txt")
-
-    cmd_output = """
-    for ingr in ingredients:
-        print(ingr)
-        tools = parseTools(ingr)
-        print("Tools: ", tools)
-    print()
-
-    #Steps - Add parsed ingredients, tools, methods etc.
-    steps = 1
-    for instr in instructions:
-        print("Step " + str(steps) + ":")
-        print(instr)
-        tools = parseTools(instr)
-        print("Tools: ", tools)
-        steps += 1
-    """
-
-    #Test Alternative Scraper/Parser
-    # scraper = scrape_me(url)
-    # print(scraper.ingredients())
-    # print(scraper.instructions())
+    if out == "cmd":
+        print(json.dumps(ingr_dict, indent=4))
+        print()
+        print(json.dumps(instr_dict, indent=4))
+    else:
+        write_out(ingr_dict, instr_dict, transformation, out)
 
 
 if __name__ == "__main__":
