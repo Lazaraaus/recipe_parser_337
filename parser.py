@@ -146,7 +146,8 @@ UNHEALTHY_TO_HEALTHY = {'beef': 'turkey',
                         'milk chocolate': 'dark chocolate',
                         'ground beef': 'ground turkey',
                         'steak': 'veal',
-                        'carbonara': 'veggie carbonara'
+                        'carbonara': 'veggie carbonara',
+                        'butter': 'ghee'
 }
 # Dict for healthy to unhealthy transform
 HEALTHY_TO_UNHEALTHY = {'turkey' : 'beef',
@@ -160,7 +161,10 @@ HEALTHY_TO_UNHEALTHY = {'turkey' : 'beef',
                         'dark chocolate': 'milk chocolate',
                         'ground turkey': 'ground beef',
                         'veal' : 'steak',
-                        'veggie carbonara': 'carbonara'
+                        'veggie carbonara': 'carbonara',
+                        'ghee': 'butter',
+                        'coconut oil': 'butter'
+                    
 }
 
 #Ingredients indicative of a cuisine 
