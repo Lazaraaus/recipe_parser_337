@@ -107,20 +107,6 @@ UNITS = [
 
 # Time Words
 TIMES = ['second', 'seconds', 'minute', 'minutes', 'hour', 'hours', 'overnight', 'over night']
-# Tool Words
-TOOLS = ['pan', 'bowl', 'baster', 'saucepan', 'knife', 'oven', 'beanpot', 'chip pan', 'cookie sheet', 'cooking pot', 'crepe pan', 'double boiler', 'doufeu',
-         'dutch oven', 'food processor', 'frying pan', 'skillet', 'griddle', 'karahi', 'kettle', 'pan', 'pressure cooker', 'ramekin', 'roasting pan',
-         'roasting rack', 'saucepansauciersaute pan', 'splayed saute pan', 'souffle dish', 'springform pan', 'stockpot', 'tajine', 'tube panwok',
-         'wonder pot', 'pot', 'apple corer', 'apple cutter', 'baster', 'biscuit cutter', 'biscuit press', 'baking dish', 'bread knife', 'browning tray',
-         'butter curler', 'cake and pie server', 'cheese knife', 'cheesecloth', 'knife', 'cherry pitter', 'chinoise', 'cleaver', 'corkscrew',
-         'cutting board', 'dough scraper', 'egg poacher', 'egg separator', 'egg slicer', 'egg timer', 'fillet knife', 'fish scaler', 'fish slice',
-         'flour sifter', 'food mill', 'funnel', 'garlic press', 'grapefruit knife', 'grater', 'gravy strainer', 'ladle', 'lame', 'lemon reamer',
-         'lemon squeezer', 'mandoline', 'mated colander pot', 'measuring cup', 'measuring spoon', 'grinder', 'tenderiser', 'thermometer', 'melon baller',
-         'mortar and pestle', 'nutcracker', 'nutmeg grater', 'oven glove', 'blender', 'fryer', 'pastry bush', 'pastry wheel', 'peeler', 'pepper mill',
-         'pizza cutter', 'masher', 'potato ricer', 'pot-holder', 'rolling pin', 'salt shaker', 'sieve', 'spoon', 'fork', 'spatula', 'spider', 'tin opener',
-         'tongs', 'whisk', 'wooden spoon', 'zester', 'microwave', 'cylinder', 'Aluminum foil', 'steamer', 'broiler rack', 'grate', 'shallow glass dish', 'wok',
-         'dish', 'broiler tray', 'slow cooker', 'saucepan', 'peeler', 'pin', 'frying', 'board', 'foil']
-
 # Tool Prefixes
 PREFIXES = ['casserole', 'cookie', 'baking', 'frying', 'rolling', 'souffle', 'sauce', 'saute', 'roasting', 'pastry', 'cutting', 'dutch', 'crepe', 'food', 
             'pressure', 'wonder', 'biscuit', 'measuring', 'pastry', 'pizza', 'broiler', 'slow']
@@ -143,15 +129,39 @@ INGREDIENT_DESCRIPTOR = ['fresh', 'good', 'heirloom', 'virgin', 'extra virgin', 
 # Stop Words for Ingredient parsing
 INGREDIENT_STOP_WORDS = ['ground', 'black']
 
-# Containers for replacement/generation 
-# Healthy, Vegetarian, Cuisine, etc
-# Maybe a dict of lists
-
 ###Aaron 11/21
 #Just jotting of ideas here for healthy transformations
 #Just delete any occurence of oil, frying -> baking/air frying
 #Less carbs -> more vegetables
-HEALTHY_TO_UNHEALTHY = {'beef': 'turkey', 'fry': 'bake', 'bacon': 'turkey bacon', 'pasta': 'whole-grain pasta', 'sour cream': 'greek yogurt', 'rice': 'quinoa', 'lamb': 'turkey'}
+
+# Dict for healthy to unhealthy transform
+UNHEALTHY_TO_HEALTHY = {'beef': 'turkey', 
+                        'fry': 'bake', 
+                        'bacon': 'turkey bacon', 
+                        'pasta': 'whole-grain pasta', 
+                        'sour cream': 'greek yogurt', 
+                        'rice': 'quinoa', 
+                        'lamb': 'turkey',
+                        'canola oil': 'peanut oil',
+                        'milk chocolate': 'dark chocolate',
+                        'ground beef': 'ground turkey',
+                        'steak': 'veal',
+                        'carbonara': 'veggie carbonara'
+}
+# Dict for healthy to unhealthy transform
+HEALTHY_TO_UNHEALTHY = {'turkey' : 'beef',
+                        'bake': 'fry',
+                        'turkey bacon': 'bacon',
+                        'whole-grain pasta' : 'pasta',
+                        'greek yogurt' : 'sour cream', 
+                        'quinoa' : 'rice', 
+                        'turkey' : 'lamb',
+                        'peanut oil': 'canola oil',
+                        'dark chocolate': 'milk chocolate',
+                        'ground turkey': 'ground beef',
+                        'veal' : 'steak',
+                        'veggie carbonara': 'carbonara'
+}
 
 #Ingredients indicative of a cuisine 
 #Tempura as a frying technique
@@ -574,14 +584,29 @@ def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str)
                         old_to_new[ingr_phrase_add] = 'chicken'
                         # set old ingr to new ingr
                         ingr_phrase_add = 'chicken'
-            
+
+                # Check if in meat_sauce_subs 
+                if ingr_phrase_add in VEGETARIAN['meat_sauce_subs']:
+                    # Sub w/ any meat sauce
+                    random_index = random.randrange(len(VEGETARIAN['meat_sauces']))
+                    # Set old ingr as key to new ingr
+                    old_to_new[ingr_phrase_add] = VEGETARIAN["meat_sauces"][random_index]
+                    # Set old ingr to new ingr
+                    ingr_phrase_add = old_to_new[ingr_phrase_add]
+
             # Healthy Transformation
             if transformation == "healthy":
-                pass
+                if ingr_phrase_add in UNHEALTHY_TO_HEALTHY.keys():
+                    # Sub w/ healthy alternative
+                    old_to_new[ingr_phrase_add] = UNHEALTHY_TO_HEALTHY[ingr_phrase_add]
+                    ingr_phrase_add = old_to_new[ingr_phrase_add]
 
             # Unhealthy Transformation
             if transformation == "unhealthy":
-                pass
+                if ingr_phrase_add in HEALTHY_TO_UNHEALTHY.keys():
+                    # Sub w/ unhealthy alternative
+                    old_to_new[ingr_phrase_add] = HEALTHY_TO_UNHEALTHY[ingr_phrase_add]
+                    ingr_phrase_add = old_to_new[ingr_phrase_add]
 
             ingr_phrase.append(ingr_phrase_add)
         lines.append(" ".join([p for p in ingr_phrase if p is not None]))
@@ -646,8 +671,9 @@ def get_ingredients_from_ingrs_dict(ingr_dict):
 def main():
     transformation, out, url = sys.argv[1:4]
     if url == "test":
-        url = 'https://www.allrecipes.com/recipe/237335/spicy-sweet-pork-tenderloin/' 
-        #"https://www.allrecipes.com/recipe/279351/skillet-burgers/" 
+        url = "https://www.allrecipes.com/recipe/279351/skillet-burgers/" 
+
+        #'https://www.allrecipes.com/recipe/237335/spicy-sweet-pork-tenderloin/'         
         #'https://www.allrecipes.com/recipe/281710/pumpkin-ravioli-with-sage-brown-butter-sauce/'
         #'https://www.allrecipes.com/recipe/11679/homemade-mac-and-cheese/' 
         #'https://www.allrecipes.com/recipe/246553/bakery-style-pizza/'
