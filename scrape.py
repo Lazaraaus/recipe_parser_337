@@ -1,5 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
+import sys
 
 ###### SCRAPER ######
 def clean_text(txt: str) -> str:
@@ -10,6 +11,8 @@ def scrape(url: str) -> 'tuple[list[str], list[str]]':
     page = requests.get(url)
     soup = BeautifulSoup(page.content, "html.parser")
 
+    title = soup("h1")[0].text
+
     ingr_class = "ingredients-item-name"
     ingr_tags = soup("span", class_=ingr_class)
     ingredients = [clean_text(ingr.text) for ingr in ingr_tags]
@@ -18,4 +21,4 @@ def scrape(url: str) -> 'tuple[list[str], list[str]]':
     instr_tags = soup("li", class_=instr_class)
     instructions = [clean_text(instr.div.div.p.text) for instr in instr_tags]
     
-    return ingredients, instructions
+    return title, ingredients, instructions

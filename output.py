@@ -79,9 +79,9 @@ CONVERSIONS = {
 }
 
 # Output and Transform
-def write_out(ingr_dict: dict, instr_dict: dict, transformation: str, file: str):
+def write_out(title: str, ingr_dict: dict, instr_dict: dict, transformation: str, file: str):
     old_to_new = {}
-    lines = ["Ingredients", ""]
+    lines = [title, "", "", "Ingredients", ""]
     ingr_transform_dict = {}
     for ingr_lst in list(ingr_dict.values()):
         ingr_phrase = ["\t-"]

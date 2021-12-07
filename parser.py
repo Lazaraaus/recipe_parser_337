@@ -74,6 +74,10 @@ def get_ingredients_from_ingrs_dict(ingr_dict):
         ingrs_list.append(ingr_dict_values[-2])
     return ingrs_list
 
+
+# MACEY NOTE 12/7: Do we want to maybe split the instructions into smaller steps by sentences?
+# Also we should pull the title of the recipe?
+
 def main():
     transformation, out, url = sys.argv[1:4]
     if url == "test":
@@ -82,7 +86,7 @@ def main():
         #"https://www.allrecipes.com/recipe/149586/spicy-chicken-and-sweet-potato-stew/" 
 
     # Scrape URL
-    ingredients, instructions = scrape(url)
+    title, ingredients, instructions = scrape(url)
     # Parse Ingredients
     ingr_dict = parseIngredients(ingredients)
     # Get ingredients from ingr_dict
@@ -91,11 +95,13 @@ def main():
     instr_dict = parseInstructions(instructions, ingrs_list)
     # Output
     if out == "cmd":
+        print(title)
+        print()
         print(json.dumps(ingr_dict, indent=4))
         print()
         print(json.dumps(instr_dict, indent=4))
     else:
-        write_out(ingr_dict, instr_dict, transformation, out)
+        write_out(title, ingr_dict, instr_dict, transformation, out)
 
 
 if __name__ == "__main__":
